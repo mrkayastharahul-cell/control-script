@@ -1,12 +1,12 @@
 console.log("Automation started");
 
 setInterval(() => {
-  const btn = document.querySelector('button');
+  const elements = document.querySelectorAll('*');
 
-  if (btn) {
-    btn.click();
-    console.log("Clicked");
-  } else {
-    console.log("Not found");
-  }
+  elements.forEach(el => {
+    if (el.innerText && el.innerText.includes("Buy")) {
+      el.click();
+      console.log("Clicked Buy");
+    }
+  });
 }, 5000);
