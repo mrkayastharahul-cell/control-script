@@ -67,7 +67,7 @@ let activated = false;
 let running = false;
 let allowedUIDs = [];
 let clickCount = 0;
-let alreadyClicked = false;
+let clickLock = false;
 let found = false;
 
 
@@ -81,13 +81,13 @@ function setStatus(text, color) {
 
 
 // ===============================
-// 🔹 LOAD USERS (SERVER)
+// 🔹 LOAD USERS
 // ===============================
 fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.json")
-  .then(res => res.json())
+  .then(r => r.json())
   .then(data => {
     allowedUIDs = data.users || [];
-    checkSavedUser();
+    autoLogin();
   })
   .catch(() => setStatus("Server error ❌", "red"));
 
@@ -95,12 +95,12 @@ fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.jso
 // ===============================
 // 🔹 AUTO LOGIN
 // ===============================
-function checkSavedUser() {
-  const savedUID = localStorage.getItem("uid");
+function autoLogin() {
+  const uid = localStorage.getItem("uid");
 
-  if (savedUID && allowedUIDs.includes(savedUID)) {
+  if (uid && allowedUIDs.includes(uid)) {
     activated = true;
-    document.getElementById("uid").value = savedUID;
+    document.getElementById("uid").value = uid;
     setStatus("Activated ✅", "blue");
   } else {
     setStatus("Not Activated", "gray");
@@ -112,14 +112,14 @@ function checkSavedUser() {
 // 🔹 ACTIVATE
 // ===============================
 function activate() {
-  const input = document.getElementById("uid").value.trim();
+  const uid = document.getElementById("uid").value.trim();
 
-  if (!allowedUIDs.includes(input)) {
+  if (!allowedUIDs.includes(uid)) {
     setStatus("Invalid UID ❌", "red");
     return;
   }
 
-  localStorage.setItem("uid", input);
+  localStorage.setItem("uid", uid);
   activated = true;
 
   setStatus("Activated ✅", "blue");
@@ -130,9 +130,9 @@ function activate() {
 // 🔹 START
 // ===============================
 function start() {
-  const savedUID = localStorage.getItem("uid");
+  const uid = localStorage.getItem("uid");
 
-  if (!activated || !allowedUIDs.includes(savedUID)) {
+  if (!activated || !allowedUIDs.includes(uid)) {
     alert("Access revoked ❌");
     return;
   }
@@ -155,73 +155,74 @@ function stop() {
 // 🔹 RESET CLICK LOCK
 // ===============================
 setInterval(() => {
-  alreadyClicked = false;
+  clickLock = false;
 }, 4000);
 
 
 // ===============================
-// 🔹 MAIN AUTO BUY LOOP
+// 🔹 MAIN AUTOMATION
 // ===============================
 setInterval(() => {
   if (!running) return;
 
-  const targetAmount = document.getElementById("amount").value.trim();
-  if (!targetAmount) return;
+  const amount = document.getElementById("amount").value.trim();
+  if (!amount) return;
 
   found = false;
 
   const elements = Array.from(document.querySelectorAll('button, div, span'))
     .filter(el => el.offsetParent !== null);
 
-  elements.forEach(el => {
+  for (let el of elements) {
 
     const text = el.innerText;
-    if (!text) return;
+    if (!text) continue;
 
-    // 🔥 flexible number match
-    if (text.replace(/[^\d]/g, '').includes(targetAmount)) {
+    // 🔥 FLEXIBLE MATCH
+    if (text.replace(/[^\d]/g, '').includes(amount)) {
 
       found = true;
 
       let parent = el;
 
-      // 🔍 climb DOM to find button
+      // 🔍 climb up DOM to find BUY
       for (let i = 0; i < 5; i++) {
         if (!parent) break;
 
         const btn = parent.querySelector('button');
 
         if (btn && btn.innerText.toLowerCase().includes("buy")) {
-          if (!alreadyClicked) {
+
+          if (!clickLock) {
             btn.click();
-            alreadyClicked = true;
+            clickLock = true;
 
             clickCount++;
             document.getElementById("count").innerText = "Clicks: " + clickCount;
 
-            console.log("Clicked BUY:", targetAmount);
+            console.log("Clicked BUY:", amount);
           }
-          return;
+
+          break;
         }
 
         parent = parent.parentElement;
       }
     }
-
-  });
+  }
 
 }, 1200);
 
 
 // ===============================
-// 🔹 AUTO REFRESH IF NOT FOUND
+// 🔹 AUTO REFRESH (SAFE)
 // ===============================
 setInterval(() => {
   if (!running) return;
 
   if (!found) {
-    console.log("Not found → Refreshing...");
+    console.log("Refreshing...");
     location.reload();
   }
 
-}, 2000);
+}, 4000);
