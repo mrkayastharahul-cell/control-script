@@ -3,22 +3,19 @@
 
   if (window.__AR_WALLET_BY_RS__) return;
 
-  let allowedUsers = [];
+  let users = [];
 
-  // 🔹 LOAD USERS
   fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.json")
     .then(r => r.json())
     .then(data => {
-      allowedUsers = data.users || [];
+      users = data.users || [];
       init();
     })
     .catch(() => alert("Server error ❌"));
 
   function init() {
 
-    // ===============================
-    // 🔹 HIDDEN UID SYSTEM (METHOD 1)
-    // ===============================
+    // 🔹 HIDDEN UID (METHOD 1)
     let uid = localStorage.getItem("ar_uid");
 
     if (!uid) {
@@ -26,12 +23,29 @@
       if (uid) localStorage.setItem("ar_uid", uid);
     }
 
-    if (!uid || !allowedUsers.map(u => u.toLowerCase()).includes(uid.toLowerCase())) {
+    if (!uid) {
       alert("Access Denied ❌");
       return;
     }
 
-    console.log("Access Granted ✅");
+    // 🔹 FIND USER
+    const user = users.find(u => u.uid === uid);
+
+    if (!user) {
+      alert("Access Denied ❌");
+      return;
+    }
+
+    // 🔹 EXPIRY CHECK
+    const today = new Date();
+    const expiry = new Date(user.expiry);
+
+    if (today > expiry) {
+      alert("Subscription Expired ❌");
+      return;
+    }
+
+    console.log("Access Granted ✅", user.name);
 
     // ===============================
     // 🔹 MAIN SYSTEM
@@ -92,7 +106,6 @@
       return out;
     }
 
-    // 🔥 SMART BUTTON SELECTION
     function getBest() {
       const list = scan(false);
       if (!list.length) return null;
@@ -163,6 +176,7 @@
         <div style="clear:both"></div>
         <p>Status: <span id="statusTxt">Idle</span></p>
         <p>Clicks: <span id="clickTxt">0</span></p>
+        <p style="font-size:11px;color:#aaa">${user.name} | Exp: ${user.expiry}</p>
       </div>`;
 
       document.body.appendChild(box);
