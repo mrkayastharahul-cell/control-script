@@ -1,91 +1,152 @@
-(()=>{
+(function () {
+  "use strict";
 
-  // ================= UI =================
-  let box=document.createElement('div');
-  box.innerHTML=`
-  <div style="position:fixed;bottom:20px;right:20px;background:#111;color:#fff;padding:12px;border-radius:10px;z-index:999999;box-shadow:0 0 15px rgba(0,0,0,0.5);width:220px;font-family:sans-serif">
-    <b style="color:#00ff88">AR Wallet By RS</b><br><br>
-    <input id="amt" placeholder="Enter Amount" style="width:100%;padding:6px;border:none;border-radius:5px"><br><br>
-    <button id="st" style="width:48%;background:#00c853;color:#fff;border:none;padding:7px;border-radius:5px">Start</button>
-    <button id="sp" style="width:48%;background:#d50000;color:#fff;border:none;padding:7px;border-radius:5px;float:right">Stop</button>
-    <div style="clear:both"></div>
-    <p id="s" style="margin-top:8px">Idle</p>
-    <p id="c" style="font-size:12px">Clicks: 0</p>
-  </div>`;
-  document.body.appendChild(box);
+  if (window.__AR_WALLET_BY_RS__) return;
 
-  // ================= VAR =================
-  let run=0,lock=0,count=0,lastClick=0;
+  const STATE = {
+    running: false,
+    clicks: 0,
+    lastClickAt: 0,
+    lastRefreshAt: 0,
+    observerDirty: true,
+    loopTimer: null,
+    cache: [],
+    lastScan: 0
+  };
 
-  const setS=(t,c)=>document.getElementById("s").innerHTML=`<span style="color:${c}">${t}</span>`;
+  const CONFIG = {
+    scanInterval: 1000,
+    clickGap: 2000,
+    refreshGap: 5000,
+    cacheTTL: 800
+  };
 
-  document.getElementById("st").onclick=()=>{run=1;setS("Running 🚀","#00ff88");};
-  document.getElementById("sp").onclick=()=>{run=0;setS("Stopped ❌","#ff4444");};
+  const SELECTOR = "button,a,[role='button'],input[type='button'],input[type='submit']";
 
-  // ================= CORE ENGINE =================
-  function scan(){
+  const now = () => Date.now();
 
-    if(!run) return;
+  const visible = el => {
+    if (!el || !(el instanceof Element)) return false;
+    if (el.offsetParent === null && getComputedStyle(el).position !== "fixed") return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  };
 
-    let a=document.getElementById("amt").value.trim();
-    if(!a) return;
+  const text = el => el instanceof HTMLInputElement ? (el.value || "").trim() : (el.textContent || "").trim();
 
-    let found=false;
+  const isBuy = el => /buy/i.test(text(el));
 
-    let nodes=[...document.querySelectorAll('button,div,span')].filter(e=>e.offsetParent);
+  function scan(force) {
+    const t = now();
+    if (!force && !STATE.observerDirty && t - STATE.lastScan < CONFIG.cacheTTL) return STATE.cache;
 
-    for(let n of nodes){
+    const nodes = document.querySelectorAll(SELECTOR);
+    const out = [];
 
-      let t=n.innerText;
-      if(!t) continue;
-
-      if(t.replace(/\D/g,"").includes(a)){
-
-        found=true;
-
-        let p=n;
-
-        for(let i=0;i<4 && p;i++){
-
-          let btns=[...p.querySelectorAll('button')]
-          .filter(b=>/buy/i.test(b.innerText) && b.offsetParent);
-
-          if(btns.length){
-
-            let btn=btns.at(-1); // elite fix
-
-            // 🔥 anti-spam + human delay
-            if(Date.now()-lastClick>1200){
-
-              btn.click();
-              lastClick=Date.now();
-
-              count++;
-              document.getElementById("c").innerText="Clicks: "+count;
-
-              console.log("✔ BUY:",a);
-            }
-
-            return;
-          }
-
-          p=p.parentElement;
-        }
-      }
+    for (let i = 0; i < nodes.length; i++) {
+      const el = nodes[i];
+      if (isBuy(el) && visible(el)) out.push(el);
     }
 
-    // 🔥 smart retry (no hard spam refresh)
-    if(!found && Date.now()-lastClick>5000){
-      console.log("Retry...");
-      location.reload();
+    STATE.cache = out;
+    STATE.lastScan = t;
+    STATE.observerDirty = false;
+    return out;
+  }
+
+  // 🔥 SMART TARGET (fix bank issue)
+  function getBest() {
+    const list = scan(false);
+    if (!list.length) return null;
+
+    return list
+      .map(el => ({ el, r: el.getBoundingClientRect() }))
+      .sort((a, b) => (b.r.top + b.r.height) - (a.r.top + a.r.height))[0].el;
+  }
+
+  function click(el) {
+    const t = now();
+    if (t - STATE.lastClickAt < CONFIG.clickGap) return;
+
+    try {
+      el.click();
+      STATE.lastClickAt = t;
+      STATE.clicks++;
+      clicksEl.textContent = STATE.clicks;
+      statusEl.textContent = "Running";
+    } catch {}
+  }
+
+  function refresh() {
+    const t = now();
+    if (t - STATE.lastRefreshAt < CONFIG.refreshGap) return;
+
+    STATE.lastRefreshAt = t;
+    location.reload();
+  }
+
+  function loop() {
+    if (!STATE.running) return;
+
+    const btn = getBest();
+
+    if (btn) {
+      click(btn);
+    } else {
+      refresh();
     }
   }
 
-  // ================= REAL-TIME ENGINE =================
-  const observer=new MutationObserver(scan);
-  observer.observe(document.body,{childList:true,subtree:true});
+  function start() {
+    STATE.running = true;
+    statusEl.textContent = "Running";
 
-  // fallback safety
-  setInterval(scan,1500);
+    if (STATE.loopTimer) clearInterval(STATE.loopTimer);
+    STATE.loopTimer = setInterval(loop, CONFIG.scanInterval);
+
+    loop();
+  }
+
+  function stop() {
+    STATE.running = false;
+    if (STATE.loopTimer) clearInterval(STATE.loopTimer);
+    STATE.loopTimer = null;
+    statusEl.textContent = "Stopped";
+  }
+
+  function ui() {
+    const box = document.createElement("div");
+
+    box.innerHTML = `
+    <div style="position:fixed;bottom:20px;right:20px;background:#111;color:#fff;padding:12px;border-radius:10px;z-index:999999;font-family:sans-serif;width:220px">
+      <b style="color:#00ff88">AR Wallet By RS</b><br><br>
+      <button id="startBtn" style="width:48%;background:green;color:#fff;border:none;padding:7px;border-radius:5px">Start</button>
+      <button id="stopBtn" style="width:48%;background:red;color:#fff;border:none;padding:7px;border-radius:5px;float:right">Stop</button>
+      <div style="clear:both"></div>
+      <p>Status: <span id="statusTxt">Idle</span></p>
+      <p>Clicks: <span id="clickTxt">0</span></p>
+    </div>`;
+
+    document.body.appendChild(box);
+
+    startBtn.onclick = start;
+    stopBtn.onclick = stop;
+
+    return {
+      status: document.getElementById("statusTxt"),
+      clicks: document.getElementById("clickTxt")
+    };
+  }
+
+  function observe() {
+    const o = new MutationObserver(() => STATE.observerDirty = true);
+    o.observe(document.body, { childList: true, subtree: true });
+  }
+
+  const { status: statusEl, clicks: clicksEl } = ui();
+
+  observe();
+
+  window.__AR_WALLET_BY_RS__ = { start, stop };
 
 })();
