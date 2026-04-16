@@ -1,5 +1,5 @@
 // ===============================
-// 🔹 PANEL UI (Floating Control Box)
+// 🔹 PANEL UI
 // ===============================
 const panel = document.createElement('div');
 
@@ -11,7 +11,7 @@ panel.innerHTML = `
   background:white;
   padding:15px;
   border-radius:10px;
-  z-index:9999;
+  z-index:999999;
   box-shadow:0 0 10px rgba(0,0,0,0.3);
   width:220px;
   font-family:sans-serif;
@@ -33,7 +33,7 @@ document.body.appendChild(panel);
 
 
 // ===============================
-// 🔹 SYSTEM VARIABLES
+// 🔹 VARIABLES
 // ===============================
 let activated = false;
 let running = false;
@@ -41,7 +41,7 @@ let allowedUIDs = [];
 
 
 // ===============================
-// 🔹 LOAD USERS FROM SERVER (users.json)
+// 🔹 LOAD USERS
 // ===============================
 fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.json")
   .then(res => res.json())
@@ -55,7 +55,7 @@ fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.jso
 
 
 // ===============================
-// 🔹 AUTO CHECK SAVED USER
+// 🔹 CHECK SAVED USER
 // ===============================
 function checkSavedUser() {
   const savedUID = localStorage.getItem("uid");
@@ -63,6 +63,7 @@ function checkSavedUser() {
   if (savedUID && allowedUIDs.includes(savedUID)) {
     activated = true;
     document.getElementById("status").innerText = "Activated ✅ (Saved)";
+    document.getElementById("uid").value = savedUID;
   } else {
     document.getElementById("status").innerText = "Not Activated";
   }
@@ -70,34 +71,34 @@ function checkSavedUser() {
 
 
 // ===============================
-// 🔹 ACTIVATE USER
+// 🔹 ACTIVATE
 // ===============================
 function activate() {
   const input = document.getElementById("uid").value.trim();
 
-  // Check if UID exists in server list
   if (!allowedUIDs.includes(input)) {
     document.getElementById("status").innerHTML =
       "<span style='color:red'>Invalid UID ❌</span>";
     return;
   }
 
-  // Save UID locally
   localStorage.setItem("uid", input);
-
   activated = true;
-  document.getElementById("status").innerText = "Activated ✅";
+
+  document.getElementById("status").innerText = "Activated ✅ (" + input + ")";
 }
 
 
 // ===============================
-// 🔹 START SYSTEM
+// 🔹 START
 // ===============================
 function start() {
   const savedUID = localStorage.getItem("uid");
 
   if (!activated || !allowedUIDs.includes(savedUID)) {
-    alert("Not activated ❌");
+    activated = false;
+    localStorage.removeItem("uid");
+    alert("Access revoked ❌");
     return;
   }
 
@@ -107,7 +108,7 @@ function start() {
 
 
 // ===============================
-// 🔹 STOP SYSTEM
+// 🔹 STOP
 // ===============================
 function stop() {
   running = false;
@@ -116,17 +117,23 @@ function stop() {
 
 
 // ===============================
-// 🔹 AUTOMATION LOOP
+// 🔹 AUTOMATION (REAL CLICK)
 // ===============================
 setInterval(() => {
   if (!running) return;
 
   console.log("Running...");
 
-  // Example logic: highlight Buy buttons
-  document.querySelectorAll('button').forEach(btn => {
-    if (btn.innerText.toLowerCase().includes("buy")) {
-      btn.style.border = "2px solid red";
+  const elements = document.querySelectorAll('button, div, span');
+
+  elements.forEach(el => {
+    if (
+      el.innerText &&
+      el.innerText.toLowerCase().includes("buy") &&
+      el.offsetParent !== null // visible only
+    ) {
+      el.click();
+      console.log("Clicked:", el.innerText);
     }
   });
 
