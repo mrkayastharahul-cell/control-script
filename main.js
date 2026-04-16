@@ -4,16 +4,7 @@
   if (window.__AR_WALLET_BY_RS__) return;
   window.__AR_WALLET_BY_RS__ = true;
 
-  let targetAmount = null;
-
-  // 🔹 ASK AMOUNT
-  function askAmount() {
-    const val = prompt("Enter Amount (e.g. 100)");
-    if (!val) return null;
-    return val.replace(/\D/g, "");
-  }
-
-  targetAmount = askAmount();
+  let targetAmount = prompt("Enter Amount (e.g. 100)")?.replace(/\D/g, "");
 
   if (!targetAmount) {
     alert("No amount entered ❌");
@@ -39,13 +30,23 @@
     return r.width > 0 && r.height > 0;
   }
 
+  // 🔥 FORCE OTP-UPI TAB
+  function forceTab() {
+    const tabs = [...document.querySelectorAll("*")];
+
+    const target = tabs.find(el =>
+      /otp[- ]?upi/i.test(el.innerText)
+    );
+
+    if (target) target.click();
+  }
+
   function findBuy() {
     const rows = [...document.querySelectorAll("div,li")];
 
     for (let row of rows) {
       const text = row.innerText || "";
 
-      // 🔥 MATCH AMOUNT
       if (text.includes(targetAmount)) {
 
         const btn = [...row.querySelectorAll("button")]
@@ -83,6 +84,8 @@
   function loop() {
     if (!STATE.running) return;
 
+    forceTab(); // 🔥 ALWAYS STAY ON OTP-UPI
+
     const btn = findBuy();
 
     if (btn) {
@@ -105,7 +108,7 @@
     statusEl.textContent = "Stopped";
   }
 
-  // 🔹 UI
+  // UI
   const box = document.createElement("div");
 
   box.innerHTML = `
