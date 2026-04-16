@@ -1,152 +1,91 @@
-// ===============================
-// 🔹 SIMPLE PANEL
-// ===============================
-const panel = document.createElement('div');
+(()=>{
 
-panel.innerHTML = `
-<div style="
-  position:fixed;
-  bottom:20px;
-  right:20px;
-  background:white;
-  padding:12px;
-  border-radius:10px;
-  z-index:999999;
-  box-shadow:0 0 10px rgba(0,0,0,0.3);
-  width:200px;
-  font-family:sans-serif;
-">
-  <b>Quick Buy</b><br><br>
+  // ================= UI =================
+  let box=document.createElement('div');
+  box.innerHTML=`
+  <div style="position:fixed;bottom:20px;right:20px;background:#111;color:#fff;padding:12px;border-radius:10px;z-index:999999;box-shadow:0 0 15px rgba(0,0,0,0.5);width:220px;font-family:sans-serif">
+    <b style="color:#00ff88">AR Wallet By RS</b><br><br>
+    <input id="amt" placeholder="Enter Amount" style="width:100%;padding:6px;border:none;border-radius:5px"><br><br>
+    <button id="st" style="width:48%;background:#00c853;color:#fff;border:none;padding:7px;border-radius:5px">Start</button>
+    <button id="sp" style="width:48%;background:#d50000;color:#fff;border:none;padding:7px;border-radius:5px;float:right">Stop</button>
+    <div style="clear:both"></div>
+    <p id="s" style="margin-top:8px">Idle</p>
+    <p id="c" style="font-size:12px">Clicks: 0</p>
+  </div>`;
+  document.body.appendChild(box);
 
-  <input id="amount" placeholder="Enter Amount ₹" style="width:100%; padding:5px;"><br><br>
+  // ================= VAR =================
+  let run=0,lock=0,count=0,lastClick=0;
 
-  <button onclick="start()" style="
-    width:48%;
-    background:green;
-    color:white;
-    border:none;
-    padding:8px;
-    border-radius:6px;
-  ">Start</button>
+  const setS=(t,c)=>document.getElementById("s").innerHTML=`<span style="color:${c}">${t}</span>`;
 
-  <button onclick="stop()" style="
-    width:48%;
-    background:red;
-    color:white;
-    border:none;
-    padding:8px;
-    border-radius:6px;
-    float:right;
-  ">Stop</button>
+  document.getElementById("st").onclick=()=>{run=1;setS("Running 🚀","#00ff88");};
+  document.getElementById("sp").onclick=()=>{run=0;setS("Stopped ❌","#ff4444");};
 
-  <div style="clear:both;"></div>
+  // ================= CORE ENGINE =================
+  function scan(){
 
-  <p id="status">Idle</p>
-</div>
-`;
+    if(!run) return;
 
-document.body.appendChild(panel);
+    let a=document.getElementById("amt").value.trim();
+    if(!a) return;
 
+    let found=false;
 
-// ===============================
-// 🔹 VARIABLES
-// ===============================
-let running = false;
-let clickLock = false;
-let found = false;
+    let nodes=[...document.querySelectorAll('button,div,span')].filter(e=>e.offsetParent);
 
+    for(let n of nodes){
 
-// ===============================
-// 🔹 STATUS
-// ===============================
-function setStatus(text, color) {
-  document.getElementById("status").innerHTML =
-    `<span style="color:${color}; font-weight:bold;">${text}</span>`;
-}
+      let t=n.innerText;
+      if(!t) continue;
 
+      if(t.replace(/\D/g,"").includes(a)){
 
-// ===============================
-// 🔹 START / STOP
-// ===============================
-function start() {
-  running = true;
-  setStatus("Running 🚀", "green");
-}
+        found=true;
 
-function stop() {
-  running = false;
-  setStatus("Stopped ❌", "red");
-}
+        let p=n;
 
+        for(let i=0;i<4 && p;i++){
 
-// ===============================
-// 🔹 RESET CLICK LOCK
-// ===============================
-setInterval(() => {
-  clickLock = false;
-}, 3000);
+          let btns=[...p.querySelectorAll('button')]
+          .filter(b=>/buy/i.test(b.innerText) && b.offsetParent);
 
+          if(btns.length){
 
-// ===============================
-// 🔹 MAIN LOGIC (FIND + CLICK)
-// ===============================
-setInterval(() => {
-  if (!running) return;
+            let btn=btns.at(-1); // elite fix
 
-  const amount = document.getElementById("amount").value.trim();
-  if (!amount) return;
+            // 🔥 anti-spam + human delay
+            if(Date.now()-lastClick>1200){
 
-  found = false;
+              btn.click();
+              lastClick=Date.now();
 
-  const elements = Array.from(document.querySelectorAll('button, div, span'))
-    .filter(el => el.offsetParent !== null); // visible only
+              count++;
+              document.getElementById("c").innerText="Clicks: "+count;
 
-  for (let el of elements) {
+              console.log("✔ BUY:",a);
+            }
 
-    const text = el.innerText;
-    if (!text) continue;
-
-    // 🔥 FLEXIBLE AMOUNT MATCH
-    if (text.replace(/[^\d]/g, '').includes(amount)) {
-
-      found = true;
-
-      let parent = el;
-
-      for (let i = 0; i < 5; i++) {
-        if (!parent) break;
-
-        const btn = parent.querySelector('button');
-
-        if (btn && btn.innerText.toLowerCase().includes("buy")) {
-
-          if (!clickLock) {
-            btn.click();
-            clickLock = true;
-
-            console.log("Clicked BUY:", amount);
+            return;
           }
 
-          break;
+          p=p.parentElement;
         }
-
-        parent = parent.parentElement;
       }
+    }
+
+    // 🔥 smart retry (no hard spam refresh)
+    if(!found && Date.now()-lastClick>5000){
+      console.log("Retry...");
+      location.reload();
     }
   }
 
-}, 1200);
+  // ================= REAL-TIME ENGINE =================
+  const observer=new MutationObserver(scan);
+  observer.observe(document.body,{childList:true,subtree:true});
 
+  // fallback safety
+  setInterval(scan,1500);
 
-// ===============================
-// 🔹 AUTO REFRESH IF NOT FOUND
-// ===============================
-setInterval(() => {
-  if (!running) return;
-
-  if (!found) {
-    console.log("Not found → Refreshing...");
-    location.reload();
-  }
-
-}, 3000);
+})();
