@@ -13,7 +13,7 @@ panel.innerHTML = `
   border-radius:10px;
   z-index:999999;
   box-shadow:0 0 10px rgba(0,0,0,0.3);
-  width:220px;
+  width:230px;
   font-family:sans-serif;
 ">
   <b>Wallet Tool</b><br><br>
@@ -23,8 +23,11 @@ panel.innerHTML = `
   <button onclick="activate()">Activate</button><br><br>
   
   <button onclick="start()">Start</button>
-  <button onclick="stop()">Stop</button>
-  
+  <button onclick="stop()">Stop</button><br><br>
+
+  <button onclick="findTargets()">Find Buy</button>
+  <button onclick="clickFirst()">Click</button>
+
   <p id="status">Loading...</p>
 </div>
 `;
@@ -38,6 +41,7 @@ document.body.appendChild(panel);
 let activated = false;
 let running = false;
 let allowedUIDs = [];
+let targets = [];
 
 
 // ===============================
@@ -62,7 +66,7 @@ function checkSavedUser() {
 
   if (savedUID && allowedUIDs.includes(savedUID)) {
     activated = true;
-    document.getElementById("status").innerText = "Activated ✅ (Saved)";
+    document.getElementById("status").innerText = "Activated ✅";
     document.getElementById("uid").value = savedUID;
   } else {
     document.getElementById("status").innerText = "Not Activated";
@@ -90,15 +94,13 @@ function activate() {
 
 
 // ===============================
-// 🔹 START
+// 🔹 START / STOP
 // ===============================
 function start() {
   const savedUID = localStorage.getItem("uid");
 
   if (!activated || !allowedUIDs.includes(savedUID)) {
-    activated = false;
-    localStorage.removeItem("uid");
-    alert("Access revoked ❌");
+    alert("Not activated ❌");
     return;
   }
 
@@ -106,10 +108,6 @@ function start() {
   document.getElementById("status").innerText = "Running 🚀";
 }
 
-
-// ===============================
-// 🔹 STOP
-// ===============================
 function stop() {
   running = false;
   document.getElementById("status").innerText = "Stopped ❌";
@@ -117,24 +115,50 @@ function stop() {
 
 
 // ===============================
-// 🔹 AUTOMATION (REAL CLICK)
+// 🔹 FIND BUTTONS
+// ===============================
+function findTargets() {
+  targets = [];
+
+  document.querySelectorAll('button, div, span').forEach(el => {
+    if (
+      el.innerText &&
+      /(buy|continue)/i.test(el.innerText) &&
+      el.offsetParent !== null
+    ) {
+      el.style.outline = "2px solid red";
+      targets.push(el);
+    }
+  });
+
+  console.log("Found:", targets);
+  document.getElementById("status").innerText = "Found " + targets.length + " items";
+}
+
+
+// ===============================
+// 🔹 CLICK (MANUAL CONFIRM)
+// ===============================
+function clickFirst() {
+  if (!targets.length) {
+    alert("No targets found ❌");
+    return;
+  }
+
+  if (confirm("Click first highlighted button?")) {
+    targets[0].click();
+    console.log("Clicked:", targets[0].innerText);
+  }
+}
+
+
+// ===============================
+// 🔹 LOOP (SAFE GUIDE MODE)
 // ===============================
 setInterval(() => {
   if (!running) return;
 
-  console.log("Running...");
+  console.log("Scanning...");
+  findTargets();
 
-  const elements = document.querySelectorAll('button, div, span');
-
-  elements.forEach(el => {
-    if (
-      el.innerText &&
-      el.innerText.toLowerCase().includes("buy") &&
-      el.offsetParent !== null // visible only
-    ) {
-      el.click();
-      console.log("Clicked:", el.innerText);
-    }
-  });
-
-}, 3000);
+}, 4000);
