@@ -4,6 +4,22 @@
   if (window.__AR_WALLET_BY_RS__) return;
   window.__AR_WALLET_BY_RS__ = true;
 
+  let targetAmount = null;
+
+  // 🔹 ASK AMOUNT
+  function askAmount() {
+    const val = prompt("Enter Amount (e.g. 100)");
+    if (!val) return null;
+    return val.replace(/\D/g, "");
+  }
+
+  targetAmount = askAmount();
+
+  if (!targetAmount) {
+    alert("No amount entered ❌");
+    return;
+  }
+
   const STATE = {
     running: false,
     clicks: 0,
@@ -12,32 +28,36 @@
   };
 
   const CONFIG = {
-    scanInterval: 1000,
+    scanInterval: 800,
     clickGap: 2000,
-    refreshGap: 3000
+    refreshGap: 2000
   };
 
   function visible(el) {
     if (!el || !(el instanceof Element)) return false;
-    if (el.offsetParent === null && getComputedStyle(el).position !== "fixed") return false;
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0;
   }
 
   function findBuy() {
-    const buttons = [...document.querySelectorAll("button,a,[role='button'],input")];
+    const rows = [...document.querySelectorAll("div,li")];
 
-    const valid = buttons.filter(b =>
-      visible(b) &&
-      /buy/i.test(b.innerText || b.value || "")
-    );
+    for (let row of rows) {
+      const text = row.innerText || "";
 
-    if (!valid.length) return null;
+      // 🔥 MATCH AMOUNT
+      if (text.includes(targetAmount)) {
 
-    // Pick lowest visible Buy (most relevant)
-    return valid.sort((a, b) =>
-      (b.getBoundingClientRect().top) - (a.getBoundingClientRect().top)
-    )[0];
+        const btn = [...row.querySelectorAll("button")]
+          .find(b => /buy/i.test(b.innerText));
+
+        if (btn && visible(btn)) {
+          return btn;
+        }
+      }
+    }
+
+    return null;
   }
 
   function click(btn) {
@@ -47,6 +67,7 @@
     btn.click();
     STATE.lastClick = now;
     STATE.clicks++;
+
     clickEl.textContent = STATE.clicks;
     statusEl.textContent = "Running";
   }
@@ -84,15 +105,13 @@
     statusEl.textContent = "Stopped";
   }
 
-  // ===============================
-  // UI
-  // ===============================
-
+  // 🔹 UI
   const box = document.createElement("div");
 
   box.innerHTML = `
-  <div style="position:fixed;bottom:20px;right:20px;background:#111;color:#fff;padding:12px;border-radius:10px;z-index:999999;font-family:sans-serif;width:220px">
-    <b style="color:#00ff88">AR Wallet By RS</b><br><br>
+  <div style="position:fixed;bottom:20px;right:20px;background:#111;color:#fff;padding:12px;border-radius:10px;z-index:999999;font-family:sans-serif;width:230px">
+    <b style="color:#00ff88">AR Wallet By RS</b><br>
+    <small>Target: ₹${targetAmount}</small><br><br>
     <button id="startBtn" style="width:48%;background:green;color:#fff;border:none;padding:7px;border-radius:5px">Start</button>
     <button id="stopBtn" style="width:48%;background:red;color:#fff;border:none;padding:7px;border-radius:5px;float:right">Stop</button>
     <div style="clear:both"></div>
