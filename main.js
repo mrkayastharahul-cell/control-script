@@ -23,44 +23,45 @@
     return r.width>0 && r.height>0;
   }
 
-  // 🔥 Stay on OTP UPI
+  // 🔥 FORCE OTP-UPI TAB
   function forceTab(){
     const tab=[...document.querySelectorAll("*")]
       .find(e=>/otp[- ]?upi/i.test(e.innerText));
     if(tab) tab.click();
   }
 
-  // 🔥 STRICT NUMBER MATCH
-  function extractNumbers(text){
-    return text.match(/\d+/g) || [];
-  }
-
+  // 🔥 FINAL CLICK LOGIC (FIXED)
   function findAndClick(){
     if (!target) return;
 
-    const rows=[...document.querySelectorAll("div,li")];
+    const elements = [...document.querySelectorAll("*")];
 
-    for(let r of rows){
-      let txt = r.innerText || "";
+    for (let el of elements) {
 
-      const nums = extractNumbers(txt);
+      let txt = el.innerText || "";
 
-      // 🔥 EXACT MATCH ONLY
-      if (nums.includes(target)) {
+      // 🔥 STRICT ₹ MATCH
+      if (txt.includes("₹" + target)) {
 
-        let btn=[...r.querySelectorAll("button")]
-          .find(b=>/buy/i.test(b.innerText));
+        let parent = el.closest("div");
+        if (!parent) continue;
 
-        if(btn && visible(btn)){
-          let now=Date.now();
+        let btn = [...parent.querySelectorAll("button")]
+          .find(b => /buy/i.test(b.innerText));
 
-          if(now - STATE.lastClick > CONFIG.clickGap){
+        if (btn && visible(btn)) {
+
+          let now = Date.now();
+
+          if (now - STATE.lastClick > CONFIG.clickGap) {
             btn.click();
             STATE.lastClick = now;
             STATE.clicks++;
 
             clickEl.innerText = STATE.clicks;
             statusEl.innerText = "Running";
+
+            console.log("Clicked ₹" + target);
           }
 
           return true;
@@ -86,6 +87,10 @@
 
     STATE.running = true;
     statusEl.innerText = "Running";
+
+    console.log("Started with target:", target);
+
+    findAndClick(); // 🔥 instant first run
   }
 
   function stop(){
@@ -99,7 +104,18 @@
     targetEl.innerText = "₹" + (target || "0");
   }
 
-  // 🔥 REAL-TIME DETECTION
+  function reset(){
+    STATE.running = false;
+    target = "";
+    STATE.clicks = 0;
+
+    inputEl.value = "";
+    targetEl.innerText = "₹0";
+    clickEl.innerText = "0";
+    statusEl.innerText = "Idle";
+  }
+
+  // 🔥 LIVE DETECTION (NO REFRESH)
   const observer = new MutationObserver(()=>{
     if(STATE.running) findAndClick();
   });
@@ -108,15 +124,33 @@
 
   setInterval(loop, CONFIG.scanDelay);
 
-  // UI
+  // ===============================
+  // 🔥 UI PANEL
+  // ===============================
   const box=document.createElement("div");
 
   box.innerHTML=`
-  <div style="position:fixed;bottom:20px;right:20px;background:#111;color:#fff;padding:14px;border-radius:12px;z-index:999999;width:250px">
-    <b style="color:#00ff88">AR Wallet By RS</b><br><br>
+  <div style="
+    position:fixed;
+    bottom:20px;
+    right:20px;
+    background:#111;
+    color:#fff;
+    padding:14px;
+    border-radius:12px;
+    z-index:999999;
+    width:250px;
+    font-family:sans-serif;
+    box-shadow:0 0 15px rgba(0,0,0,0.5);
+  ">
+    <div style="font-weight:bold;color:#00ff88;font-size:16px">
+      AR Wallet By RS
+    </div>
 
-    <input id="amtInput" placeholder="Enter Amount"
-      style="width:100%;padding:7px;border-radius:6px;border:none">
+    <div style="margin-top:10px">
+      <input id="amtInput" placeholder="Enter Amount"
+        style="width:100%;padding:7px;border-radius:6px;border:none">
+    </div>
 
     <button id="setBtn"
       style="width:100%;margin-top:8px;background:#007bff;color:#fff;border:none;padding:7px;border-radius:6px">
@@ -128,9 +162,20 @@
     </div>
 
     <div style="margin-top:10px">
-      <button id="startBtn" style="width:32%;background:green;color:#fff;border:none;padding:7px;border-radius:6px">Start</button>
-      <button id="stopBtn" style="width:32%;background:red;color:#fff;border:none;padding:7px;border-radius:6px">Stop</button>
-      <button id="resetBtn" style="width:32%;background:#444;color:#fff;border:none;padding:7px;border-radius:6px">Reset</button>
+      <button id="startBtn"
+        style="width:32%;background:green;color:#fff;border:none;padding:7px;border-radius:6px">
+        Start
+      </button>
+
+      <button id="stopBtn"
+        style="width:32%;background:red;color:#fff;border:none;padding:7px;border-radius:6px">
+        Stop
+      </button>
+
+      <button id="resetBtn"
+        style="width:32%;background:#444;color:#fff;border:none;padding:7px;border-radius:6px">
+        Reset
+      </button>
     </div>
 
     <div style="margin-top:10px;font-size:13px">
@@ -150,14 +195,6 @@
   document.getElementById("startBtn").onclick=start;
   document.getElementById("stopBtn").onclick=stop;
   document.getElementById("setBtn").onclick=setAmount;
-  document.getElementById("resetBtn").onclick=()=>{
-    target="";
-    inputEl.value="";
-    targetEl.innerText="₹0";
-    statusEl.innerText="Idle";
-    clickEl.innerText="0";
-    STATE.clicks=0;
-    STATE.running=false;
-  };
+  document.getElementById("resetBtn").onclick=reset;
 
 })();
