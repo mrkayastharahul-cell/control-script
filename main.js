@@ -6,7 +6,6 @@
 
   let users = [];
 
-  // 🔥 LOAD USERS (NO CACHE ISSUE)
   fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.json?v=" + Date.now())
     .then(r => r.json())
     .then(data => {
@@ -20,12 +19,11 @@
 
   function init() {
 
-    // 🔹 HIDDEN UID SYSTEM
+    // 🔹 GET UID (DO NOT SAVE YET)
     let uid = localStorage.getItem("ar_uid");
 
     if (!uid) {
       uid = prompt("Enter Your UID")?.trim();
-      if (uid) localStorage.setItem("ar_uid", uid);
     }
 
     if (!uid) {
@@ -38,6 +36,7 @@
 
     if (!user) {
       alert("Access Denied ❌");
+      localStorage.removeItem("ar_uid"); // 🔥 FIX: remove wrong UID
       return;
     }
 
@@ -47,8 +46,12 @@
 
     if (today > expiry) {
       alert("Subscription Expired ❌");
+      localStorage.removeItem("ar_uid");
       return;
     }
+
+    // 🔥 SAVE ONLY VALID UID
+    localStorage.setItem("ar_uid", uid);
 
     console.log("Access Granted ✅", user.name);
 
@@ -135,6 +138,11 @@
       statusEl.textContent = "Stopped";
     }
 
+    function changeUID() {
+      localStorage.removeItem("ar_uid");
+      location.reload();
+    }
+
     // ===============================
     // 🔹 UI
     // ===============================
@@ -142,10 +150,11 @@
     const box = document.createElement("div");
 
     box.innerHTML = `
-    <div style="position:fixed;bottom:20px;right:20px;background:#111;color:#fff;padding:12px;border-radius:10px;z-index:999999;font-family:sans-serif;width:220px">
+    <div style="position:fixed;bottom:20px;right:20px;background:#111;color:#fff;padding:12px;border-radius:10px;z-index:999999;font-family:sans-serif;width:230px">
       <b style="color:#00ff88">AR Wallet By RS</b><br><br>
-      <button id="startBtn" style="width:48%;background:green;color:#fff;border:none;padding:7px;border-radius:5px">Start</button>
-      <button id="stopBtn" style="width:48%;background:red;color:#fff;border:none;padding:7px;border-radius:5px;float:right">Stop</button>
+      <button id="startBtn" style="width:32%;background:green;color:#fff;border:none;padding:6px;border-radius:5px">Start</button>
+      <button id="stopBtn" style="width:32%;background:red;color:#fff;border:none;padding:6px;border-radius:5px">Stop</button>
+      <button id="changeBtn" style="width:32%;background:#007bff;color:#fff;border:none;padding:6px;border-radius:5px">Change</button>
       <div style="clear:both"></div>
       <p>Status: <span id="statusTxt">Idle</span></p>
       <p>Clicks: <span id="clickTxt">0</span></p>
@@ -159,6 +168,7 @@
 
     document.getElementById("startBtn").onclick = start;
     document.getElementById("stopBtn").onclick = stop;
+    document.getElementById("changeBtn").onclick = changeUID;
   }
 
 })();
