@@ -1,5 +1,5 @@
 // ===============================
-// 🔹 PANEL UI
+// 🔹 SIMPLE PANEL
 // ===============================
 const panel = document.createElement('div');
 
@@ -9,31 +9,20 @@ panel.innerHTML = `
   bottom:20px;
   right:20px;
   background:white;
-  padding:15px;
-  border-radius:12px;
+  padding:12px;
+  border-radius:10px;
   z-index:999999;
-  box-shadow:0 0 15px rgba(0,0,0,0.3);
-  width:240px;
+  box-shadow:0 0 10px rgba(0,0,0,0.3);
+  width:200px;
   font-family:sans-serif;
 ">
-  <b>Wallet Tool</b><br><br>
+  <b>Quick Buy</b><br><br>
 
-  <input id="uid" placeholder="Enter UID" style="width:100%; padding:5px;"><br><br>
   <input id="amount" placeholder="Enter Amount ₹" style="width:100%; padding:5px;"><br><br>
-
-  <button onclick="activate()" style="
-    width:100%;
-    background:#007bff;
-    color:white;
-    border:none;
-    padding:8px;
-    border-radius:6px;
-    margin-bottom:10px;
-  ">Activate</button>
 
   <button onclick="start()" style="
     width:48%;
-    background:#28a745;
+    background:green;
     color:white;
     border:none;
     padding:8px;
@@ -42,7 +31,7 @@ panel.innerHTML = `
 
   <button onclick="stop()" style="
     width:48%;
-    background:#dc3545;
+    background:red;
     color:white;
     border:none;
     padding:8px;
@@ -52,8 +41,7 @@ panel.innerHTML = `
 
   <div style="clear:both;"></div>
 
-  <p id="status" style="margin-top:10px; font-weight:bold;">Loading...</p>
-  <p id="count" style="font-size:12px;">Clicks: 0</p>
+  <p id="status">Idle</p>
 </div>
 `;
 
@@ -63,16 +51,13 @@ document.body.appendChild(panel);
 // ===============================
 // 🔹 VARIABLES
 // ===============================
-let activated = false;
 let running = false;
-let allowedUIDs = [];
-let clickCount = 0;
 let clickLock = false;
 let found = false;
 
 
 // ===============================
-// 🔹 STATUS FUNCTION
+// 🔹 STATUS
 // ===============================
 function setStatus(text, color) {
   document.getElementById("status").innerHTML =
@@ -81,70 +66,13 @@ function setStatus(text, color) {
 
 
 // ===============================
-// 🔹 LOAD USERS
-// ===============================
-fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.json")
-  .then(r => r.json())
-  .then(data => {
-    allowedUIDs = data.users || [];
-    autoLogin();
-  })
-  .catch(() => setStatus("Server error ❌", "red"));
-
-
-// ===============================
-// 🔹 AUTO LOGIN
-// ===============================
-function autoLogin() {
-  const uid = localStorage.getItem("uid");
-
-  if (uid && allowedUIDs.includes(uid)) {
-    activated = true;
-    document.getElementById("uid").value = uid;
-    setStatus("Activated ✅", "blue");
-  } else {
-    setStatus("Not Activated", "gray");
-  }
-}
-
-
-// ===============================
-// 🔹 ACTIVATE
-// ===============================
-function activate() {
-  const uid = document.getElementById("uid").value.trim();
-
-  if (!allowedUIDs.includes(uid)) {
-    setStatus("Invalid UID ❌", "red");
-    return;
-  }
-
-  localStorage.setItem("uid", uid);
-  activated = true;
-
-  setStatus("Activated ✅", "blue");
-}
-
-
-// ===============================
-// 🔹 START
+// 🔹 START / STOP
 // ===============================
 function start() {
-  const uid = localStorage.getItem("uid");
-
-  if (!activated || !allowedUIDs.includes(uid)) {
-    alert("Access revoked ❌");
-    return;
-  }
-
   running = true;
   setStatus("Running 🚀", "green");
 }
 
-
-// ===============================
-// 🔹 STOP
-// ===============================
 function stop() {
   running = false;
   setStatus("Stopped ❌", "red");
@@ -156,11 +84,11 @@ function stop() {
 // ===============================
 setInterval(() => {
   clickLock = false;
-}, 4000);
+}, 3000);
 
 
 // ===============================
-// 🔹 MAIN AUTOMATION
+// 🔹 MAIN LOGIC (FIND + CLICK)
 // ===============================
 setInterval(() => {
   if (!running) return;
@@ -171,21 +99,20 @@ setInterval(() => {
   found = false;
 
   const elements = Array.from(document.querySelectorAll('button, div, span'))
-    .filter(el => el.offsetParent !== null);
+    .filter(el => el.offsetParent !== null); // visible only
 
   for (let el of elements) {
 
     const text = el.innerText;
     if (!text) continue;
 
-    // 🔥 FLEXIBLE MATCH
+    // 🔥 FLEXIBLE AMOUNT MATCH
     if (text.replace(/[^\d]/g, '').includes(amount)) {
 
       found = true;
 
       let parent = el;
 
-      // 🔍 climb up DOM to find BUY
       for (let i = 0; i < 5; i++) {
         if (!parent) break;
 
@@ -196,9 +123,6 @@ setInterval(() => {
           if (!clickLock) {
             btn.click();
             clickLock = true;
-
-            clickCount++;
-            document.getElementById("count").innerText = "Clicks: " + clickCount;
 
             console.log("Clicked BUY:", amount);
           }
@@ -215,14 +139,14 @@ setInterval(() => {
 
 
 // ===============================
-// 🔹 AUTO REFRESH (SAFE)
+// 🔹 AUTO REFRESH IF NOT FOUND
 // ===============================
 setInterval(() => {
   if (!running) return;
 
   if (!found) {
-    console.log("Refreshing...");
+    console.log("Not found → Refreshing...");
     location.reload();
   }
 
-}, 4000);
+}, 3000);
