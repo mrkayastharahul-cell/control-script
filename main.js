@@ -19,7 +19,17 @@
 
   function init() {
 
-    // 🔹 GET UID (DO NOT SAVE YET)
+    // 🔹 DEVICE ID
+    function getDeviceId() {
+      return btoa(
+        navigator.userAgent +
+        screen.width +
+        screen.height +
+        Intl.DateTimeFormat().resolvedOptions().timeZone
+      );
+    }
+
+    // 🔹 UID
     let uid = localStorage.getItem("ar_uid");
 
     if (!uid) {
@@ -31,16 +41,15 @@
       return;
     }
 
-    // 🔹 FIND USER
     const user = users.find(u => u.uid === uid);
 
     if (!user) {
       alert("Access Denied ❌");
-      localStorage.removeItem("ar_uid"); // 🔥 FIX: remove wrong UID
+      localStorage.removeItem("ar_uid");
       return;
     }
 
-    // 🔹 EXPIRY CHECK
+    // 🔹 EXPIRY
     const today = new Date();
     const expiry = new Date(user.expiry);
 
@@ -50,7 +59,20 @@
       return;
     }
 
-    // 🔥 SAVE ONLY VALID UID
+    // 🔹 DEVICE LOCK
+    const currentDevice = getDeviceId();
+    const savedDevice = localStorage.getItem("ar_device");
+
+    if (!savedDevice) {
+      localStorage.setItem("ar_device", currentDevice);
+    }
+
+    if (savedDevice && savedDevice !== currentDevice) {
+      alert("Device Mismatch ❌ Contact Admin");
+      return;
+    }
+
+    // 🔹 SAVE UID AFTER SUCCESS
     localStorage.setItem("ar_uid", uid);
 
     console.log("Access Granted ✅", user.name);
@@ -139,7 +161,7 @@
     }
 
     function changeUID() {
-      localStorage.removeItem("ar_uid");
+      localStorage.clear();
       location.reload();
     }
 
@@ -154,7 +176,7 @@
       <b style="color:#00ff88">AR Wallet By RS</b><br><br>
       <button id="startBtn" style="width:32%;background:green;color:#fff;border:none;padding:6px;border-radius:5px">Start</button>
       <button id="stopBtn" style="width:32%;background:red;color:#fff;border:none;padding:6px;border-radius:5px">Stop</button>
-      <button id="changeBtn" style="width:32%;background:#007bff;color:#fff;border:none;padding:6px;border-radius:5px">Change</button>
+      <button id="changeBtn" style="width:32%;background:#007bff;color:#fff;border:none;padding:6px;border-radius:5px">Reset</button>
       <div style="clear:both"></div>
       <p>Status: <span id="statusTxt">Idle</span></p>
       <p>Clicks: <span id="clickTxt">0</span></p>
