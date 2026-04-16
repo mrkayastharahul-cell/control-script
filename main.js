@@ -17,10 +17,10 @@ panel.innerHTML = `
   font-family:sans-serif;
 ">
   <b>Wallet Tool</b><br><br>
-  
+
   <input id="uid" placeholder="Enter UID" style="width:100%; padding:5px;"><br><br>
   <input id="amount" placeholder="Enter Amount ₹" style="width:100%; padding:5px;"><br><br>
-  
+
   <button onclick="activate()" style="
     width:100%;
     background:#007bff;
@@ -30,7 +30,7 @@ panel.innerHTML = `
     border-radius:6px;
     margin-bottom:10px;
   ">Activate</button>
-  
+
   <button onclick="start()" style="
     width:48%;
     background:#28a745;
@@ -49,9 +49,9 @@ panel.innerHTML = `
     border-radius:6px;
     float:right;
   ">Stop</button>
-  
+
   <div style="clear:both;"></div>
-  
+
   <p id="status" style="margin-top:10px; font-weight:bold;">Loading...</p>
   <p id="count" style="font-size:12px;">Clicks: 0</p>
 </div>
@@ -68,6 +68,7 @@ let running = false;
 let allowedUIDs = [];
 let clickCount = 0;
 let alreadyClicked = false;
+let found = false;
 
 
 // ===============================
@@ -80,7 +81,7 @@ function setStatus(text, color) {
 
 
 // ===============================
-// 🔹 LOAD USERS
+// 🔹 LOAD USERS (SERVER)
 // ===============================
 fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.json")
   .then(res => res.json())
@@ -159,7 +160,7 @@ setInterval(() => {
 
 
 // ===============================
-// 🔹 ACCURATE AUTOMATION (CARD-BASED)
+// 🔹 MAIN AUTO BUY LOOP
 // ===============================
 setInterval(() => {
   if (!running) return;
@@ -167,37 +168,60 @@ setInterval(() => {
   const targetAmount = document.getElementById("amount").value.trim();
   if (!targetAmount) return;
 
-  console.log("Searching:", targetAmount);
+  found = false;
 
-  // 🔥 STEP 1: Find all possible offer cards
-  const cards = document.querySelectorAll('div');
+  const elements = Array.from(document.querySelectorAll('button, div, span'))
+    .filter(el => el.offsetParent !== null);
 
-  cards.forEach(card => {
+  elements.forEach(el => {
 
-    const text = card.innerText;
+    const text = el.innerText;
+    if (!text) return;
 
-    // 🔥 STEP 2: Match amount inside card
-    if (text && text.replace(/\s/g, '').includes(targetAmount)) {
+    // 🔥 flexible number match
+    if (text.replace(/[^\d]/g, '').includes(targetAmount)) {
 
-      // 🔥 STEP 3: Find BUY button inside SAME card
-      const buyBtn = card.querySelector('button');
+      found = true;
 
-      if (
-        buyBtn &&
-        buyBtn.innerText.toLowerCase().includes("buy") &&
-        !alreadyClicked
-      ) {
-        buyBtn.click();
+      let parent = el;
 
-        alreadyClicked = true;
-        clickCount++;
+      // 🔍 climb DOM to find button
+      for (let i = 0; i < 5; i++) {
+        if (!parent) break;
 
-        document.getElementById("count").innerText = "Clicks: " + clickCount;
+        const btn = parent.querySelector('button');
 
-        console.log("Clicked:", targetAmount);
+        if (btn && btn.innerText.toLowerCase().includes("buy")) {
+          if (!alreadyClicked) {
+            btn.click();
+            alreadyClicked = true;
+
+            clickCount++;
+            document.getElementById("count").innerText = "Clicks: " + clickCount;
+
+            console.log("Clicked BUY:", targetAmount);
+          }
+          return;
+        }
+
+        parent = parent.parentElement;
       }
     }
 
   });
 
-}, 1500);
+}, 1200);
+
+
+// ===============================
+// 🔹 AUTO REFRESH IF NOT FOUND
+// ===============================
+setInterval(() => {
+  if (!running) return;
+
+  if (!found) {
+    console.log("Not found → Refreshing...");
+    location.reload();
+  }
+
+}, 2000);
