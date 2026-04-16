@@ -1,4 +1,6 @@
-// ===== PANEL UI =====
+// ===============================
+// 🔹 PANEL UI (Floating Control Box)
+// ===============================
 const panel = document.createElement('div');
 
 panel.innerHTML = `
@@ -14,7 +16,7 @@ panel.innerHTML = `
   width:220px;
   font-family:sans-serif;
 ">
-  <b>My Wallet Tool</b><br><br>
+  <b>Wallet Tool</b><br><br>
   
   <input id="uid" placeholder="Enter UID" style="width:100%"><br><br>
   
@@ -30,17 +32,21 @@ panel.innerHTML = `
 document.body.appendChild(panel);
 
 
-// ===== SYSTEM VARIABLES =====
+// ===============================
+// 🔹 SYSTEM VARIABLES
+// ===============================
 let activated = false;
 let running = false;
-let userData = {};
+let allowedUIDs = [];
 
 
-// ===== LOAD SERVER DATA =====
+// ===============================
+// 🔹 LOAD USERS FROM SERVER (users.json)
+// ===============================
 fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.json")
   .then(res => res.json())
   .then(data => {
-    userData = data;
+    allowedUIDs = data.users || [];
     checkSavedUser();
   })
   .catch(() => {
@@ -48,66 +54,50 @@ fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.jso
   });
 
 
-// ===== CHECK SAVED USER =====
+// ===============================
+// 🔹 AUTO CHECK SAVED USER
+// ===============================
 function checkSavedUser() {
   const savedUID = localStorage.getItem("uid");
 
-  if (!savedUID || !userData[savedUID]) {
-    document.getElementById("status").innerText = "Not Activated";
-    return;
-  }
-
-  const expiry = userData[savedUID].expiry;
-
-  if (Date.now() < expiry) {
+  if (savedUID && allowedUIDs.includes(savedUID)) {
     activated = true;
-
-    const daysLeft = Math.ceil((expiry - Date.now()) / (1000 * 60 * 60 * 24));
-    document.getElementById("status").innerText = "Active (" + daysLeft + " days left)";
+    document.getElementById("status").innerText = "Activated ✅ (Saved)";
   } else {
-    localStorage.removeItem("uid");
-    document.getElementById("status").innerText = "Expired ❌";
+    document.getElementById("status").innerText = "Not Activated";
   }
 }
 
 
-// ===== ACTIVATE =====
+// ===============================
+// 🔹 ACTIVATE USER
+// ===============================
 function activate() {
   const input = document.getElementById("uid").value.trim();
 
-  if (!userData[input]) {
-    document.getElementById("status").innerHTML = "<span style='color:red'>Invalid UID ❌</span>";
+  // Check if UID exists in server list
+  if (!allowedUIDs.includes(input)) {
+    document.getElementById("status").innerHTML =
+      "<span style='color:red'>Invalid UID ❌</span>";
     return;
   }
 
-  const expiry = userData[input].expiry;
-
-  if (Date.now() > expiry) {
-    document.getElementById("status").innerText = "Expired ❌";
-    return;
-  }
-
+  // Save UID locally
   localStorage.setItem("uid", input);
-  activated = true;
 
-  const daysLeft = Math.ceil((expiry - Date.now()) / (1000 * 60 * 60 * 24));
-  document.getElementById("status").innerText = "Activated (" + daysLeft + " days left)";
+  activated = true;
+  document.getElementById("status").innerText = "Activated ✅";
 }
 
 
-// ===== START =====
+// ===============================
+// 🔹 START SYSTEM
+// ===============================
 function start() {
   const savedUID = localStorage.getItem("uid");
 
-  if (!activated || !userData[savedUID]) {
+  if (!activated || !allowedUIDs.includes(savedUID)) {
     alert("Not activated ❌");
-    return;
-  }
-
-  const expiry = userData[savedUID].expiry;
-
-  if (Date.now() > expiry) {
-    alert("Subscription expired ❌");
     return;
   }
 
@@ -116,19 +106,24 @@ function start() {
 }
 
 
-// ===== STOP =====
+// ===============================
+// 🔹 STOP SYSTEM
+// ===============================
 function stop() {
   running = false;
   document.getElementById("status").innerText = "Stopped ❌";
 }
 
 
-// ===== AUTOMATION LOOP =====
+// ===============================
+// 🔹 AUTOMATION LOOP
+// ===============================
 setInterval(() => {
   if (!running) return;
 
   console.log("Running...");
 
+  // Example logic: highlight Buy buttons
   document.querySelectorAll('button').forEach(btn => {
     if (btn.innerText.toLowerCase().includes("buy")) {
       btn.style.border = "2px solid red";
