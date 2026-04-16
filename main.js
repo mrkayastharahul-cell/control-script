@@ -2,20 +2,25 @@
   "use strict";
 
   if (window.__AR_WALLET_BY_RS__) return;
+  window.__AR_WALLET_BY_RS__ = true;
 
   let users = [];
 
-  fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.json")
+  // 🔥 LOAD USERS (NO CACHE ISSUE)
+  fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.json?v=" + Date.now())
     .then(r => r.json())
     .then(data => {
       users = data.users || [];
       init();
     })
-    .catch(() => alert("Server error ❌"));
+    .catch(err => {
+      alert("Server error ❌");
+      console.log(err);
+    });
 
   function init() {
 
-    // 🔹 HIDDEN UID (METHOD 1)
+    // 🔹 HIDDEN UID SYSTEM
     let uid = localStorage.getItem("ar_uid");
 
     if (!uid) {
@@ -48,98 +53,67 @@
     console.log("Access Granted ✅", user.name);
 
     // ===============================
-    // 🔹 MAIN SYSTEM
+    // 🔹 AUTO BUY SYSTEM
     // ===============================
 
     const STATE = {
       running: false,
       clicks: 0,
-      lastClickAt: 0,
-      lastRefreshAt: 0,
-      observerDirty: true,
-      loopTimer: null,
-      cache: [],
-      lastScan: 0
+      lastClick: 0,
+      lastRefresh: 0
     };
 
     const CONFIG = {
       scanInterval: 1000,
       clickGap: 2000,
-      refreshGap: 5000,
-      cacheTTL: 800
+      refreshGap: 5000
     };
 
-    const SELECTOR = "button,a,[role='button'],input[type='button'],input[type='submit']";
-
-    const now = () => Date.now();
-
-    const visible = el => {
+    function visible(el) {
       if (!el || !(el instanceof Element)) return false;
       if (el.offsetParent === null && getComputedStyle(el).position !== "fixed") return false;
       const r = el.getBoundingClientRect();
       return r.width > 0 && r.height > 0;
-    };
-
-    const text = el =>
-      el instanceof HTMLInputElement
-        ? (el.value || "").trim()
-        : (el.textContent || "").trim();
-
-    const isBuy = el => /buy/i.test(text(el));
-
-    function scan(force) {
-      const t = now();
-      if (!force && !STATE.observerDirty && t - STATE.lastScan < CONFIG.cacheTTL)
-        return STATE.cache;
-
-      const nodes = document.querySelectorAll(SELECTOR);
-      const out = [];
-
-      for (let i = 0; i < nodes.length; i++) {
-        const el = nodes[i];
-        if (isBuy(el) && visible(el)) out.push(el);
-      }
-
-      STATE.cache = out;
-      STATE.lastScan = t;
-      STATE.observerDirty = false;
-      return out;
     }
 
-    function getBest() {
-      const list = scan(false);
-      if (!list.length) return null;
+    function findBuy() {
+      const buttons = [...document.querySelectorAll("button,a,[role='button'],input")];
 
-      return list
-        .map(el => ({ el, r: el.getBoundingClientRect() }))
-        .sort((a, b) => (b.r.top + b.r.height) - (a.r.top + a.r.height))[0].el;
+      const valid = buttons.filter(b =>
+        visible(b) &&
+        /buy/i.test(b.innerText || b.value || "")
+      );
+
+      if (!valid.length) return null;
+
+      return valid.sort((a, b) =>
+        (b.getBoundingClientRect().top) - (a.getBoundingClientRect().top)
+      )[0];
     }
 
-    function click(el) {
-      const t = now();
-      if (t - STATE.lastClickAt < CONFIG.clickGap) return;
+    function click(btn) {
+      const now = Date.now();
+      if (now - STATE.lastClick < CONFIG.clickGap) return;
 
-      try {
-        el.click();
-        STATE.lastClickAt = t;
-        STATE.clicks++;
-        clicksEl.textContent = STATE.clicks;
-        statusEl.textContent = "Running";
-      } catch {}
+      btn.click();
+      STATE.lastClick = now;
+      STATE.clicks++;
+      clickEl.textContent = STATE.clicks;
+      statusEl.textContent = "Running";
     }
 
     function refresh() {
-      const t = now();
-      if (t - STATE.lastRefreshAt < CONFIG.refreshGap) return;
+      const now = Date.now();
+      if (now - STATE.lastRefresh < CONFIG.refreshGap) return;
 
-      STATE.lastRefreshAt = t;
+      STATE.lastRefresh = now;
       location.reload();
     }
 
     function loop() {
       if (!STATE.running) return;
 
-      const btn = getBest();
+      const btn = findBuy();
 
       if (btn) {
         click(btn);
@@ -152,54 +126,39 @@
       STATE.running = true;
       statusEl.textContent = "Running";
 
-      if (STATE.loopTimer) clearInterval(STATE.loopTimer);
-      STATE.loopTimer = setInterval(loop, CONFIG.scanInterval);
-
+      setInterval(loop, CONFIG.scanInterval);
       loop();
     }
 
     function stop() {
       STATE.running = false;
-      if (STATE.loopTimer) clearInterval(STATE.loopTimer);
-      STATE.loopTimer = null;
       statusEl.textContent = "Stopped";
     }
 
-    function ui() {
-      const box = document.createElement("div");
+    // ===============================
+    // 🔹 UI
+    // ===============================
 
-      box.innerHTML = `
-      <div style="position:fixed;bottom:20px;right:20px;background:#111;color:#fff;padding:12px;border-radius:10px;z-index:999999;font-family:sans-serif;width:220px">
-        <b style="color:#00ff88">AR Wallet By RS</b><br><br>
-        <button id="startBtn" style="width:48%;background:green;color:#fff;border:none;padding:7px;border-radius:5px">Start</button>
-        <button id="stopBtn" style="width:48%;background:red;color:#fff;border:none;padding:7px;border-radius:5px;float:right">Stop</button>
-        <div style="clear:both"></div>
-        <p>Status: <span id="statusTxt">Idle</span></p>
-        <p>Clicks: <span id="clickTxt">0</span></p>
-        <p style="font-size:11px;color:#aaa">${user.name} | Exp: ${user.expiry}</p>
-      </div>`;
+    const box = document.createElement("div");
 
-      document.body.appendChild(box);
+    box.innerHTML = `
+    <div style="position:fixed;bottom:20px;right:20px;background:#111;color:#fff;padding:12px;border-radius:10px;z-index:999999;font-family:sans-serif;width:220px">
+      <b style="color:#00ff88">AR Wallet By RS</b><br><br>
+      <button id="startBtn" style="width:48%;background:green;color:#fff;border:none;padding:7px;border-radius:5px">Start</button>
+      <button id="stopBtn" style="width:48%;background:red;color:#fff;border:none;padding:7px;border-radius:5px;float:right">Stop</button>
+      <div style="clear:both"></div>
+      <p>Status: <span id="statusTxt">Idle</span></p>
+      <p>Clicks: <span id="clickTxt">0</span></p>
+      <p style="font-size:11px;color:#aaa">${user.name} | Exp: ${user.expiry}</p>
+    </div>`;
 
-      startBtn.onclick = start;
-      stopBtn.onclick = stop;
+    document.body.appendChild(box);
 
-      return {
-        status: document.getElementById("statusTxt"),
-        clicks: document.getElementById("clickTxt")
-      };
-    }
+    const statusEl = document.getElementById("statusTxt");
+    const clickEl = document.getElementById("clickTxt");
 
-    function observe() {
-      const o = new MutationObserver(() => (STATE.observerDirty = true));
-      o.observe(document.body, { childList: true, subtree: true });
-    }
-
-    const { status: statusEl, clicks: clicksEl } = ui();
-
-    observe();
-
-    window.__AR_WALLET_BY_RS__ = { start, stop };
+    document.getElementById("startBtn").onclick = start;
+    document.getElementById("stopBtn").onclick = stop;
   }
 
 })();
