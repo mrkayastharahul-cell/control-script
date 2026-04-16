@@ -5,30 +5,36 @@
 
   let allowedUsers = [];
 
-  // 🔹 LOAD USERS FROM GITHUB
+  // 🔹 LOAD USERS
   fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.json")
     .then(r => r.json())
     .then(data => {
       allowedUsers = data.users || [];
       init();
     })
-    .catch(() => {
-      alert("Server error ❌");
-    });
+    .catch(() => alert("Server error ❌"));
 
   function init() {
 
-    const uid = prompt("Enter Your UID");
+    // ===============================
+    // 🔹 HIDDEN UID SYSTEM (METHOD 1)
+    // ===============================
+    let uid = localStorage.getItem("ar_uid");
 
-    if (!allowedUsers.includes(uid)) {
+    if (!uid) {
+      uid = prompt("Enter Your UID")?.trim();
+      if (uid) localStorage.setItem("ar_uid", uid);
+    }
+
+    if (!uid || !allowedUsers.map(u => u.toLowerCase()).includes(uid.toLowerCase())) {
       alert("Access Denied ❌");
       return;
     }
 
-    alert("Access Granted ✅");
+    console.log("Access Granted ✅");
 
     // ===============================
-    // 🔹 MAIN SYSTEM STARTS HERE
+    // 🔹 MAIN SYSTEM
     // ===============================
 
     const STATE = {
@@ -60,13 +66,17 @@
       return r.width > 0 && r.height > 0;
     };
 
-    const text = el => el instanceof HTMLInputElement ? (el.value || "").trim() : (el.textContent || "").trim();
+    const text = el =>
+      el instanceof HTMLInputElement
+        ? (el.value || "").trim()
+        : (el.textContent || "").trim();
 
     const isBuy = el => /buy/i.test(text(el));
 
     function scan(force) {
       const t = now();
-      if (!force && !STATE.observerDirty && t - STATE.lastScan < CONFIG.cacheTTL) return STATE.cache;
+      if (!force && !STATE.observerDirty && t - STATE.lastScan < CONFIG.cacheTTL)
+        return STATE.cache;
 
       const nodes = document.querySelectorAll(SELECTOR);
       const out = [];
@@ -82,6 +92,7 @@
       return out;
     }
 
+    // 🔥 SMART BUTTON SELECTION
     function getBest() {
       const list = scan(false);
       if (!list.length) return null;
@@ -166,7 +177,7 @@
     }
 
     function observe() {
-      const o = new MutationObserver(() => STATE.observerDirty = true);
+      const o = new MutationObserver(() => (STATE.observerDirty = true));
       o.observe(document.body, { childList: true, subtree: true });
     }
 
