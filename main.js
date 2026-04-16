@@ -1,5 +1,5 @@
 // ===============================
-// 🔹 PANEL UI (Styled + Controls)
+// 🔹 PANEL UI
 // ===============================
 const panel = document.createElement('div');
 
@@ -18,13 +18,9 @@ panel.innerHTML = `
 ">
   <b>Wallet Tool</b><br><br>
   
-  <!-- UID INPUT -->
   <input id="uid" placeholder="Enter UID" style="width:100%; padding:5px;"><br><br>
-
-  <!-- AMOUNT INPUT -->
   <input id="amount" placeholder="Enter Amount ₹" style="width:100%; padding:5px;"><br><br>
   
-  <!-- ACTIVATE BUTTON -->
   <button onclick="activate()" style="
     width:100%;
     background:#007bff;
@@ -33,10 +29,8 @@ panel.innerHTML = `
     padding:8px;
     border-radius:6px;
     margin-bottom:10px;
-    cursor:pointer;
   ">Activate</button>
   
-  <!-- START / STOP BUTTONS -->
   <button onclick="start()" style="
     width:48%;
     background:#28a745;
@@ -44,7 +38,6 @@ panel.innerHTML = `
     border:none;
     padding:8px;
     border-radius:6px;
-    cursor:pointer;
   ">Start</button>
 
   <button onclick="stop()" style="
@@ -55,25 +48,11 @@ panel.innerHTML = `
     padding:8px;
     border-radius:6px;
     float:right;
-    cursor:pointer;
   ">Stop</button>
   
   <div style="clear:both;"></div>
   
-  <!-- STATUS + DOT -->
-  <p id="status" style="margin-top:10px; font-weight:bold;">
-    <span id="dot" style="
-      height:10px;
-      width:10px;
-      background:gray;
-      border-radius:50%;
-      display:inline-block;
-      margin-right:5px;
-    "></span>
-    Loading...
-  </p>
-
-  <!-- CLICK COUNTER -->
+  <p id="status" style="margin-top:10px; font-weight:bold;">Loading...</p>
   <p id="count" style="font-size:12px;">Clicks: 0</p>
 </div>
 `;
@@ -84,34 +63,24 @@ document.body.appendChild(panel);
 // ===============================
 // 🔹 VARIABLES
 // ===============================
-let activated = false;     // User activation status
-let running = false;       // Automation running state
-let allowedUIDs = [];      // Loaded from server
-let clickCount = 0;        // Total clicks
+let activated = false;
+let running = false;
+let allowedUIDs = [];
+let clickCount = 0;
+let alreadyClicked = false;
 
 
 // ===============================
-// 🔹 STATUS FUNCTION (color + dot)
+// 🔹 STATUS FUNCTION
 // ===============================
 function setStatus(text, color) {
-  const statusEl = document.getElementById("status");
-
-  statusEl.innerHTML = `
-    <span style="
-      height:10px;
-      width:10px;
-      background:${color};
-      border-radius:50%;
-      display:inline-block;
-      margin-right:5px;
-    "></span>
-    ${text}
-  `;
+  document.getElementById("status").innerHTML =
+    `<span style="color:${color}; font-weight:bold;">${text}</span>`;
 }
 
 
 // ===============================
-// 🔹 LOAD USERS FROM SERVER
+// 🔹 LOAD USERS
 // ===============================
 fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.json")
   .then(res => res.json())
@@ -119,13 +88,11 @@ fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/users.jso
     allowedUIDs = data.users || [];
     checkSavedUser();
   })
-  .catch(() => {
-    setStatus("Server error ❌", "red");
-  });
+  .catch(() => setStatus("Server error ❌", "red"));
 
 
 // ===============================
-// 🔹 CHECK SAVED USER (AUTO LOGIN)
+// 🔹 AUTO LOGIN
 // ===============================
 function checkSavedUser() {
   const savedUID = localStorage.getItem("uid");
@@ -133,7 +100,7 @@ function checkSavedUser() {
   if (savedUID && allowedUIDs.includes(savedUID)) {
     activated = true;
     document.getElementById("uid").value = savedUID;
-    setStatus("Activated ✅ (Saved)", "#007bff");
+    setStatus("Activated ✅", "blue");
   } else {
     setStatus("Not Activated", "gray");
   }
@@ -141,7 +108,7 @@ function checkSavedUser() {
 
 
 // ===============================
-// 🔹 ACTIVATE USER
+// 🔹 ACTIVATE
 // ===============================
 function activate() {
   const input = document.getElementById("uid").value.trim();
@@ -154,20 +121,17 @@ function activate() {
   localStorage.setItem("uid", input);
   activated = true;
 
-  setStatus("Activated ✅ (" + input + ")", "#007bff");
+  setStatus("Activated ✅", "blue");
 }
 
 
 // ===============================
-// 🔹 START SYSTEM
+// 🔹 START
 // ===============================
 function start() {
   const savedUID = localStorage.getItem("uid");
 
-  // Re-check access from server
   if (!activated || !allowedUIDs.includes(savedUID)) {
-    activated = false;
-    localStorage.removeItem("uid");
     alert("Access revoked ❌");
     return;
   }
@@ -178,7 +142,7 @@ function start() {
 
 
 // ===============================
-// 🔹 STOP SYSTEM
+// 🔹 STOP
 // ===============================
 function stop() {
   running = false;
@@ -187,42 +151,53 @@ function stop() {
 
 
 // ===============================
-// 🔹 SMART AUTOMATION LOOP
+// 🔹 RESET CLICK LOCK
 // ===============================
-let alreadyClicked = false;
+setInterval(() => {
+  alreadyClicked = false;
+}, 4000);
 
+
+// ===============================
+// 🔹 ACCURATE AUTOMATION (CARD-BASED)
+// ===============================
 setInterval(() => {
   if (!running) return;
 
   const targetAmount = document.getElementById("amount").value.trim();
   if (!targetAmount) return;
 
-  console.log("Searching for:", targetAmount);
+  console.log("Searching:", targetAmount);
 
-  const elements = document.querySelectorAll('*');
+  // 🔥 STEP 1: Find all possible offer cards
+  const cards = document.querySelectorAll('div');
 
-  elements.forEach(el => {
-    if (
-      el.innerText &&
-      el.innerText.includes("₹" + targetAmount)
-    ) {
-      const parent = el.closest('div');
-      if (!parent) return;
+  cards.forEach(card => {
 
-      const buyBtn = Array.from(parent.querySelectorAll('*')).find(b =>
-        b.innerText && b.innerText.toLowerCase().includes("buy")
-      );
+    const text = card.innerText;
 
-      if (buyBtn && !alreadyClicked) {
+    // 🔥 STEP 2: Match amount inside card
+    if (text && text.replace(/\s/g, '').includes(targetAmount)) {
+
+      // 🔥 STEP 3: Find BUY button inside SAME card
+      const buyBtn = card.querySelector('button');
+
+      if (
+        buyBtn &&
+        buyBtn.innerText.toLowerCase().includes("buy") &&
+        !alreadyClicked
+      ) {
         buyBtn.click();
-        clickCount++;
+
         alreadyClicked = true;
+        clickCount++;
 
         document.getElementById("count").innerText = "Clicks: " + clickCount;
 
-        console.log("Clicked BUY for:", targetAmount);
+        console.log("Clicked:", targetAmount);
       }
     }
+
   });
 
-}, 2000);
+}, 1500);
