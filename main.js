@@ -4,85 +4,28 @@
   if (window.__AR_WALLET__) return;
   window.__AR_WALLET__ = true;
 
-  // ===============================
-  // 🔐 ACCESS CONTROL
-  // ===============================
-  (async function(){
-
-    const cfg = await fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/config.json?v="+Math.random())
-      .then(r=>r.json())
-      .catch(()=>null);
-
-    if (!cfg || !cfg.enabled) {
-      alert("System Disabled ❌");
-      throw new Error("Blocked");
-    }
-
-    let uid = localStorage.getItem("ar_uid");
-
-    if (!uid) {
-      uid = prompt("Enter UID");
-      localStorage.setItem("ar_uid", uid);
-    }
-
-    const user = cfg.users.find(u => u.uid === uid);
-
-    if (!user) {
-      alert("Access Denied ❌");
-      localStorage.removeItem("ar_uid");
-      throw new Error("Invalid UID");
-    }
-
-    if (new Date() > new Date(user.expiry)) {
-      alert("Expired ❌");
-      throw new Error("Expired");
-    }
-
-    function getDevice(){
-      return navigator.userAgent + screen.width + screen.height;
-    }
-
-    const current = getDevice();
-    const saved = localStorage.getItem("ar_device");
-
-    if (!saved) localStorage.setItem("ar_device", current);
-
-    if (saved && saved !== current) {
-      alert("Device Locked ❌");
-      throw new Error("Device mismatch");
-    }
-
-  })();
-
-  // ===============================
-  // 🔥 STATE
-  // ===============================
   let target = "";
+  let successSoundPlayed = false;
 
   const STATE = {
-    running: false,
-    lastClick: 0
-  };
-
-  const CONFIG = {
-    scanDelay: 400,
-    clickGap: 1500
+    running: false
   };
 
   // ===============================
-  // 🔥 SUCCESS DETECTION
+  // 🔊 SUCCESS SOUND
   // ===============================
-  function detectSuccess(){
-    const hasBuy = [...document.querySelectorAll("button")]
-      .some(b => /buy/i.test(b.innerText));
+  function playSuccessSound(){
+    const audio = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
+    audio.play().catch(()=>{});
+  }
 
-    if (!hasBuy) {
-      STATE.running = false;
-      statusDot.style.background = "red";
-      statusDot.classList.remove("pulse");
-      return true;
-    }
-    return false;
+  // ===============================
+  // 🔥 CLICK DEFAULT TAB
+  // ===============================
+  function clickDefaultOnce(){
+    const el = [...document.querySelectorAll("*")]
+      .find(e => /default/i.test(e.innerText));
+    if (el) el.click();
   }
 
   // ===============================
@@ -128,10 +71,10 @@
   }
 
   // ===============================
-  // 🔥 FIND & CLICK
+  // 🎯 FOCUS + HIGHLIGHT
   // ===============================
-  function findAndClick(){
-    if (!target || !STATE.running) return false;
+  function focusTargetRow(){
+    if (!target) return;
 
     const buttons = [...document.querySelectorAll("button")];
 
@@ -153,56 +96,93 @@
 
           if (amounts.includes(target)) {
 
-            let now = Date.now();
+            btn.scrollIntoView({ behavior: "smooth", block: "center" });
 
-            if (now - STATE.lastClick > CONFIG.clickGap) {
-              btn.click();
-              STATE.lastClick = now;
-              return true;
-            }
+            container.style.outline = "3px solid #00ff88";
+            container.style.borderRadius = "10px";
+
+            btn.focus();
+
+            document.onkeydown = (e) => {
+              if (e.key === "Enter") btn.click();
+            };
+
+            return;
           }
         }
 
         container = container.parentElement;
       }
     }
+  }
+
+  // ===============================
+  // 🔄 SUCCESS DETECTION
+  // ===============================
+  function detectSuccess(){
+    const hasBuy = [...document.querySelectorAll("button")]
+      .some(b => /buy/i.test(b.innerText));
+
+    if (!hasBuy) {
+
+      if (!successSoundPlayed) {
+        playSuccessSound();
+        successSoundPlayed = true;
+      }
+
+      STATE.running = false;
+
+      statusDot.style.background = "red";
+      statusDot.classList.remove("pulse");
+
+      return true;
+    }
 
     return false;
   }
 
   // ===============================
-  // 🔁 LOOP
+  // 🔄 OBSERVER
   // ===============================
-  function loop(){
-    if(!STATE.running) return;
+  function observeChanges(){
+    const observer = new MutationObserver(() => {
+      if (STATE.running) {
+        filterOnlyTarget();
+        focusTargetRow();
+        detectSuccess();
+      }
+    });
 
-    filterOnlyTarget();
-
-    if (detectSuccess()) return;
-
-    const clicked = findAndClick();
-
-    if (!clicked) {
-      setTimeout(() => {
-        location.reload();
-      }, 1200);
-    }
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
   }
 
+  // ===============================
+  // ▶ START
+  // ===============================
   function start(){
     if (!target) {
       alert("Enter amount ❌");
       return;
     }
 
+    successSoundPlayed = false;
+
     STATE.running = true;
 
     statusDot.style.background = "green";
     statusDot.classList.add("pulse");
 
-    findAndClick();
+    clickDefaultOnce();
+    filterOnlyTarget();
+    focusTargetRow();
   }
 
+  // ===============================
+  // ⏹ STOP
+  // ===============================
   function stop(){
     STATE.running = false;
 
@@ -268,6 +248,6 @@
   document.getElementById("stopBtn").onclick=stop;
   document.getElementById("setBtn").onclick=setAmount;
 
-  setInterval(loop, CONFIG.scanDelay);
+  observeChanges();
 
 })();
