@@ -57,7 +57,7 @@
   })();
 
   // ===============================
-  // 🔥 MAIN LOGIC
+  // 🔥 MAIN SYSTEM
   // ===============================
 
   let target = "";
@@ -73,27 +73,18 @@
     clickGap: 1500
   };
 
-  function visible(el){
-    if(!el) return false;
-    const r = el.getBoundingClientRect();
-    return r.width > 0 && r.height > 0;
-  }
-
   function forceTab(){
     const tab=[...document.querySelectorAll("*")]
       .find(e=>/otp[- ]?upi/i.test(e.innerText));
     if(tab) tab.click();
   }
 
+  // 🔥 SUCCESS DETECTION (NO BUY BUTTON = SUCCESS)
   function detectSuccess(){
-    const t = document.body.innerText.toLowerCase();
+    const hasBuy = [...document.querySelectorAll("button")]
+      .some(b => /buy/i.test(b.innerText));
 
-    if (
-      t.includes("otp") ||
-      t.includes("upi") ||
-      t.includes("pay now") ||
-      t.includes("processing")
-    ) {
+    if (!hasBuy) {
       STATE.running = false;
       statusEl.innerText = "Success - Stopped";
       return true;
@@ -102,17 +93,13 @@
     return false;
   }
 
+  // 🔥 STRICT AMOUNT MATCH
   function findAndClick(){
     if (!target || !STATE.running) return;
 
-    const buttons = [...document.querySelectorAll("button")];
+    const rows = [...document.querySelectorAll("div")];
 
-    for (let btn of buttons) {
-
-      if (!/buy/i.test(btn.innerText)) continue;
-
-      let row = btn.closest("div");
-      if (!row) continue;
+    for (let row of rows) {
 
       let text = row.innerText || "";
 
@@ -121,20 +108,24 @@
 
       let amounts = matches.map(v => v.replace(/[₹,\s]/g, ""));
 
-      if (amounts.includes(target)) {
+      if (!amounts.includes(target)) continue;
 
-        let now = Date.now();
+      const btn = [...row.querySelectorAll("button")]
+        .find(b => /buy/i.test(b.innerText));
 
-        if (now - STATE.lastClick > CONFIG.clickGap) {
-          btn.click();
-          STATE.lastClick = now;
-          STATE.clicks++;
+      if (!btn) continue;
 
-          clickEl.innerText = STATE.clicks;
-          statusEl.innerText = "Clicked";
+      let now = Date.now();
 
-          return true;
-        }
+      if (now - STATE.lastClick > CONFIG.clickGap) {
+        btn.click();
+        STATE.lastClick = now;
+        STATE.clicks++;
+
+        clickEl.innerText = STATE.clicks;
+        statusEl.innerText = "Clicked ₹" + target;
+
+        return true;
       }
     }
 
@@ -157,7 +148,7 @@
     }
 
     STATE.running = true;
-    statusEl.innerText = "Running";
+    statusEl.innerText = "Searching ₹" + target;
     findAndClick();
   }
 
@@ -173,7 +164,7 @@
   }
 
   // ===============================
-  // 🔥 UI
+  // 🔥 UI PANEL
   // ===============================
 
   const box=document.createElement("div");
