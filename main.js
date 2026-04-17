@@ -11,26 +11,20 @@
     running: false
   };
 
-  // ===============================
   // 🔊 SUCCESS SOUND
-  // ===============================
   function playSuccessSound(){
     const audio = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
     audio.play().catch(()=>{});
   }
 
-  // ===============================
   // 🔥 CLICK DEFAULT TAB
-  // ===============================
   function clickDefaultOnce(){
     const el = [...document.querySelectorAll("*")]
       .find(e => /default/i.test(e.innerText));
     if (el) el.click();
   }
 
-  // ===============================
-  // 🔥 FILTER ONLY TARGET
-  // ===============================
+  // 🔥 FILTER ONLY TARGET (FINAL FIXED VERSION)
   function filterOnlyTarget(){
     if (!target) return;
 
@@ -65,14 +59,12 @@
       let row = btn.closest("div");
 
       if (row) {
-        row.style.display = matched ? "" : "none";
+        row.style.display = matched ? "" : "none"; // 🔥 THIS LINE IS KEY
       }
     }
   }
 
-  // ===============================
-  // 🎯 FOCUS + HIGHLIGHT
-  // ===============================
+  // 🎯 FOCUS TARGET
   function focusTargetRow(){
     if (!target) return;
 
@@ -116,9 +108,7 @@
     }
   }
 
-  // ===============================
   // 🔄 SUCCESS DETECTION
-  // ===============================
   function detectSuccess(){
     const hasBuy = [...document.querySelectorAll("button")]
       .some(b => /buy/i.test(b.innerText));
@@ -141,9 +131,7 @@
     return false;
   }
 
-  // ===============================
-  // 🔄 OBSERVER
-  // ===============================
+  // 🔄 OBSERVE CHANGES
   function observeChanges(){
     const observer = new MutationObserver(() => {
       if (STATE.running) {
@@ -159,9 +147,7 @@
     });
   }
 
-  // ===============================
   // ▶ START
-  // ===============================
   function start(){
     if (!target) {
       alert("Enter amount ❌");
@@ -180,9 +166,7 @@
     focusTargetRow();
   }
 
-  // ===============================
   // ⏹ STOP
-  // ===============================
   function stop(){
     STATE.running = false;
 
@@ -195,9 +179,7 @@
     targetEl.innerText = "₹" + (target || "0");
   }
 
-  // ===============================
   // 🎨 UI
-  // ===============================
   const box=document.createElement("div");
 
   box.innerHTML=`
