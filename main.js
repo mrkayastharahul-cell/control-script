@@ -9,7 +9,7 @@
   // ===============================
   (async function(){
 
-    const cfg = await fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/config.json?v="+Date.now())
+    const cfg = await fetch("https://cdn.jsdelivr.net/gh/mrkayastharahul-cell/control-script/config.json?v="+Math.random())
       .then(r=>r.json())
       .catch(()=>null);
 
@@ -161,23 +161,23 @@
   }
 
   // ===============================
-  // 🔥 UI
+  // 🔥 PREMIUM UI (FINAL)
   // ===============================
   const box=document.createElement("div");
 
   box.innerHTML=`
 <style>
 #arBox{position:fixed;bottom:20px;right:20px;width:260px;font-family:sans-serif;z-index:999999;}
-#arCard{background:#fff;border-radius:14px;padding:14px;box-shadow:0 10px 25px rgba(0,0,0,0.2);}
+#arCard{background:#ffffff;border-radius:14px;padding:14px;box-shadow:0 10px 25px rgba(0,0,0,0.2);}
 #arHeader{display:flex;justify-content:space-between;align-items:center;}
 #arTitle{color:#ffcc00;font-weight:bold;font-size:16px;}
 #statusDot{width:10px;height:10px;border-radius:50%;background:red;}
 .pulse{animation:pulse 1s infinite;}
 @keyframes pulse{0%{transform:scale(1);}50%{transform:scale(1.5);}100%{transform:scale(1);}}
-#arInput{width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;margin-top:10px;font-weight:bold;}
-#arBtn{width:100%;margin-top:8px;padding:7px;border:none;border-radius:6px;background:#007bff;color:#fff;}
+#amtInput{width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;margin-top:10px;font-weight:bold;}
+#setBtn{width:100%;margin-top:8px;padding:7px;border:none;border-radius:6px;background:#007bff;color:#fff;}
 .arRow{margin-top:10px;display:flex;justify-content:space-between;}
-.arBtnSmall{width:48%;padding:7px;border:none;border-radius:6px;color:#fff;}
+.btn{width:48%;padding:7px;border:none;border-radius:6px;color:#fff;}
 #startBtn{background:green;} #stopBtn{background:red;}
 </style>
 
@@ -195,8 +195,8 @@
     <p>Target: <span id="targetTxt">₹0</span></p>
 
     <div class="arRow">
-      <button id="startBtn" class="arBtnSmall">Start</button>
-      <button id="stopBtn" class="arBtnSmall">Stop</button>
+      <button id="startBtn" class="btn">Start</button>
+      <button id="stopBtn" class="btn">Stop</button>
     </div>
 
   </div>
