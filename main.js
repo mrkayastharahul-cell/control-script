@@ -86,10 +86,52 @@
   }
 
   // ===============================
+  // 🔥 FILTER ONLY TARGET
+  // ===============================
+  function filterOnlyTarget(){
+    if (!target) return;
+
+    const buttons = [...document.querySelectorAll("button")];
+
+    for (let btn of buttons) {
+
+      if (!/buy/i.test(btn.innerText)) continue;
+
+      let container = btn.closest("div");
+      let matched = false;
+
+      for (let i = 0; i < 6 && container; i++) {
+
+        let text = container.innerText || "";
+        let matches = text.match(/₹\s?[\d,]+/g);
+
+        if (matches) {
+          let amounts = matches.map(v =>
+            v.replace(/[₹,\s]/g, "")
+          );
+
+          if (amounts.includes(target)) {
+            matched = true;
+            break;
+          }
+        }
+
+        container = container.parentElement;
+      }
+
+      let row = btn.closest("div");
+
+      if (row) {
+        row.style.display = matched ? "" : "none";
+      }
+    }
+  }
+
+  // ===============================
   // 🔥 FIND & CLICK
   // ===============================
   function findAndClick(){
-    if (!target || !STATE.running) return;
+    if (!target || !STATE.running) return false;
 
     const buttons = [...document.querySelectorAll("button")];
 
@@ -124,14 +166,27 @@
         container = container.parentElement;
       }
     }
+
+    return false;
   }
 
+  // ===============================
+  // 🔁 LOOP
+  // ===============================
   function loop(){
     if(!STATE.running) return;
 
+    filterOnlyTarget();
+
     if (detectSuccess()) return;
 
-    findAndClick();
+    const clicked = findAndClick();
+
+    if (!clicked) {
+      setTimeout(() => {
+        location.reload();
+      }, 1200);
+    }
   }
 
   function start(){
@@ -161,14 +216,14 @@
   }
 
   // ===============================
-  // 🔥 PREMIUM UI (FINAL)
+  // 🎨 UI
   // ===============================
   const box=document.createElement("div");
 
   box.innerHTML=`
 <style>
 #arBox{position:fixed;bottom:20px;right:20px;width:260px;font-family:sans-serif;z-index:999999;}
-#arCard{background:#ffffff;border-radius:14px;padding:14px;box-shadow:0 10px 25px rgba(0,0,0,0.2);}
+#arCard{background:#fff;border-radius:14px;padding:14px;box-shadow:0 10px 25px rgba(0,0,0,0.2);}
 #arHeader{display:flex;justify-content:space-between;align-items:center;}
 #arTitle{color:#ffcc00;font-weight:bold;font-size:16px;}
 #statusDot{width:10px;height:10px;border-radius:50%;background:red;}
