@@ -94,7 +94,7 @@
       readyPlayed = true;
     }
 
-    replaceView(container);
+    isolateTarget(container);
 
     btn.focus();
 
