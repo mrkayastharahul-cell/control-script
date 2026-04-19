@@ -10,65 +10,22 @@
 
   const STATE = { running: false };
 
-  // 🔔 READY SOUND
+  // 🔔 READY ALERT
   function playReady(){
     const a = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
     a.play().catch(()=>{});
     if (navigator.vibrate) navigator.vibrate([120,60,120]);
   }
 
-  // 🔊 SUCCESS SOUND
+  // 🔊 SUCCESS ALERT
   function playSuccess(){
     const a = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
     a.play().catch(()=>{});
     if (navigator.vibrate) navigator.vibrate([200,80,200]);
   }
 
-  // 🔥 CLICK TAB (OTP / UPI / BANK)
-  function clickTab(){
-    const el = [...document.querySelectorAll("*")]
-      .find(e => /(otp|upi|bank)/i.test(e.innerText));
-    if (el) el.click();
-  }
-
-  // 🔥 FILTER ONLY TARGET
-  function filterOnlyTarget(){
-    if (!target) return;
-
-    const buttons = [...document.querySelectorAll("button")];
-
-    for (let btn of buttons) {
-
-      if (!/buy/i.test(btn.innerText)) continue;
-
-      let container = btn.closest("div");
-      let matched = false;
-
-      for (let i = 0; i < 6 && container; i++) {
-
-        let text = container.innerText || "";
-        let matches = text.match(/₹\s?[\d,]+/g);
-
-        if (matches) {
-          let amounts = matches.map(v => v.replace(/[₹,\s]/g, ""));
-          if (amounts.includes(target)) {
-            matched = true;
-            break;
-          }
-        }
-
-        container = container.parentElement;
-      }
-
-      let row = btn.closest("div");
-      if (row) row.style.display = matched ? "" : "none";
-    }
-  }
-
-  // 🎯 FOCUS TARGET
-  function focusTarget(){
-    if (!target) return;
-
+  // 🔥 FIND TARGET ROW
+  function findTargetRow(){
     const buttons = [...document.querySelectorAll("button")];
 
     for (let btn of buttons) {
@@ -84,32 +41,22 @@
 
         if (matches) {
           let amounts = matches.map(v => v.replace(/[₹,\s]/g, ""));
-
           if (amounts.includes(target)) {
-
-            if (!readyPlayed) {
-              playReady();
-              readyPlayed = true;
-            }
-
-            btn.scrollIntoView({ behavior: "smooth", block: "center" });
-
-            container.style.outline = "3px solid #00ff88";
-            container.style.borderRadius = "10px";
-
-            btn.focus();
-
-            document.onkeydown = (e) => {
-              if (e.key === "Enter") btn.click();
-            };
-
-            return;
+            return { btn, container };
           }
         }
 
         container = container.parentElement;
       }
     }
+
+    return null;
+  }
+
+  // 🔥 REPLACE VIEW WITH TARGET
+  function replaceView(row){
+    document.body.innerHTML = "";
+    document.body.appendChild(row);
   }
 
   // 🔄 SUCCESS DETECTION
@@ -117,40 +64,42 @@
     const hasBuy = [...document.querySelectorAll("button")]
       .some(b => /buy/i.test(b.innerText));
 
-    const t = document.body.innerText.toLowerCase();
-
-    if (!hasBuy || /(otp|upi|pay|processing)/i.test(t)) {
-
-      if (!successPlayed) {
-        playSuccess();
-        successPlayed = true;
-      }
-
+    if (!hasBuy && !successPlayed) {
+      playSuccess();
+      successPlayed = true;
       STATE.running = false;
+    }
+  }
 
-      statusDot.style.background = "red";
-      statusDot.classList.remove("pulse");
+  // 🔄 LOOP (FAST SCAN)
+  function loop(){
+    if (!STATE.running) return;
 
-      return true;
+    const found = findTargetRow();
+
+    if (!found) return;
+
+    const { btn, container } = found;
+
+    if (!readyPlayed) {
+      playReady();
+      readyPlayed = true;
     }
 
-    return false;
-  }
+    replaceView(container);
 
-  // 🔄 OBSERVER (FAST MODE)
-  function observe(){
-    const observer = new MutationObserver(() => {
-      if (STATE.running) {
-        filterOnlyTarget();
-        focusTarget();
-        detectSuccess();
-      }
-    });
+    btn.focus();
 
+    document.onkeydown = (e) => {
+      if (e.key === "Enter") btn.click();
+    };
+
+    const observer = new MutationObserver(() => detectSuccess());
     observer.observe(document.body, { childList: true, subtree: true });
+
+    STATE.running = false;
   }
 
-  // ▶ START
   function start(){
     if (!target) return alert("Enter amount ❌");
 
@@ -159,19 +108,11 @@
 
     STATE.running = true;
 
-    statusDot.style.background = "green";
-    statusDot.classList.add("pulse");
-
-    clickTab();
-    filterOnlyTarget();
-    focusTarget();
+    loop();
   }
 
-  // ⏹ STOP
   function stop(){
     STATE.running = false;
-    statusDot.style.background = "red";
-    statusDot.classList.remove("pulse");
   }
 
   function setAmount(){
@@ -188,9 +129,6 @@
 #arCard{background:#fff;border-radius:14px;padding:14px;box-shadow:0 10px 25px rgba(0,0,0,0.2);}
 #arHeader{display:flex;justify-content:space-between;align-items:center;}
 #arTitle{color:#ffcc00;font-weight:bold;font-size:16px;}
-#statusDot{width:10px;height:10px;border-radius:50%;background:red;}
-.pulse{animation:pulse 1s infinite;}
-@keyframes pulse{0%{transform:scale(1);}50%{transform:scale(1.5);}100%{transform:scale(1);}}
 #amtInput{width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;margin-top:10px;font-weight:bold;}
 #setBtn{width:100%;margin-top:8px;padding:7px;border:none;border-radius:6px;background:#007bff;color:#fff;}
 .arRow{margin-top:10px;display:flex;justify-content:space-between;}
@@ -202,7 +140,6 @@
   <div id="arCard">
     <div id="arHeader">
       <span id="arTitle">AR Wallet</span>
-      <div id="statusDot"></div>
     </div>
 
     <input id="amtInput" placeholder="Enter Amount"/>
@@ -222,12 +159,9 @@
 
   const inputEl=document.getElementById("amtInput");
   const targetEl=document.getElementById("targetTxt");
-  const statusDot=document.getElementById("statusDot");
 
   document.getElementById("startBtn").onclick=start;
   document.getElementById("stopBtn").onclick=stop;
   document.getElementById("setBtn").onclick=setAmount;
-
-  observe();
 
 })();
