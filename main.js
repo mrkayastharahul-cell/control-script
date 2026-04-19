@@ -5,26 +5,33 @@
   window.__AR_WALLET__ = true;
 
   let target = "";
-  let successSoundPlayed = false;
+  let readyPlayed = false;
+  let successPlayed = false;
 
-  const STATE = {
-    running: false
-  };
+  const STATE = { running: false };
 
-  // 🔊 SUCCESS SOUND
-  function playSuccessSound(){
-    const audio = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
-    audio.play().catch(()=>{});
+  // 🔔 READY SOUND
+  function playReady(){
+    const a = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+    a.play().catch(()=>{});
+    if (navigator.vibrate) navigator.vibrate([120,60,120]);
   }
 
-  // 🔥 CLICK DEFAULT TAB
-  function clickDefaultOnce(){
+  // 🔊 SUCCESS SOUND
+  function playSuccess(){
+    const a = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
+    a.play().catch(()=>{});
+    if (navigator.vibrate) navigator.vibrate([200,80,200]);
+  }
+
+  // 🔥 CLICK TAB (OTP / UPI / BANK)
+  function clickTab(){
     const el = [...document.querySelectorAll("*")]
-      .find(e => /default/i.test(e.innerText));
+      .find(e => /(otp|upi|bank)/i.test(e.innerText));
     if (el) el.click();
   }
 
-  // 🔥 FILTER ONLY TARGET (FINAL FIXED VERSION)
+  // 🔥 FILTER ONLY TARGET
   function filterOnlyTarget(){
     if (!target) return;
 
@@ -43,10 +50,7 @@
         let matches = text.match(/₹\s?[\d,]+/g);
 
         if (matches) {
-          let amounts = matches.map(v =>
-            v.replace(/[₹,\s]/g, "")
-          );
-
+          let amounts = matches.map(v => v.replace(/[₹,\s]/g, ""));
           if (amounts.includes(target)) {
             matched = true;
             break;
@@ -57,15 +61,12 @@
       }
 
       let row = btn.closest("div");
-
-      if (row) {
-        row.style.display = matched ? "" : "none"; // 🔥 THIS LINE IS KEY
-      }
+      if (row) row.style.display = matched ? "" : "none";
     }
   }
 
   // 🎯 FOCUS TARGET
-  function focusTargetRow(){
+  function focusTarget(){
     if (!target) return;
 
     const buttons = [...document.querySelectorAll("button")];
@@ -82,11 +83,14 @@
         let matches = text.match(/₹\s?[\d,]+/g);
 
         if (matches) {
-          let amounts = matches.map(v =>
-            v.replace(/[₹,\s]/g, "")
-          );
+          let amounts = matches.map(v => v.replace(/[₹,\s]/g, ""));
 
           if (amounts.includes(target)) {
+
+            if (!readyPlayed) {
+              playReady();
+              readyPlayed = true;
+            }
 
             btn.scrollIntoView({ behavior: "smooth", block: "center" });
 
@@ -113,11 +117,13 @@
     const hasBuy = [...document.querySelectorAll("button")]
       .some(b => /buy/i.test(b.innerText));
 
-    if (!hasBuy) {
+    const t = document.body.innerText.toLowerCase();
 
-      if (!successSoundPlayed) {
-        playSuccessSound();
-        successSoundPlayed = true;
+    if (!hasBuy || /(otp|upi|pay|processing)/i.test(t)) {
+
+      if (!successPlayed) {
+        playSuccess();
+        successPlayed = true;
       }
 
       STATE.running = false;
@@ -131,45 +137,39 @@
     return false;
   }
 
-  // 🔄 OBSERVE CHANGES
-  function observeChanges(){
+  // 🔄 OBSERVER (FAST MODE)
+  function observe(){
     const observer = new MutationObserver(() => {
       if (STATE.running) {
         filterOnlyTarget();
-        focusTargetRow();
+        focusTarget();
         detectSuccess();
       }
     });
 
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   // ▶ START
   function start(){
-    if (!target) {
-      alert("Enter amount ❌");
-      return;
-    }
+    if (!target) return alert("Enter amount ❌");
 
-    successSoundPlayed = false;
+    readyPlayed = false;
+    successPlayed = false;
 
     STATE.running = true;
 
     statusDot.style.background = "green";
     statusDot.classList.add("pulse");
 
-    clickDefaultOnce();
+    clickTab();
     filterOnlyTarget();
-    focusTargetRow();
+    focusTarget();
   }
 
   // ⏹ STOP
   function stop(){
     STATE.running = false;
-
     statusDot.style.background = "red";
     statusDot.classList.remove("pulse");
   }
@@ -200,7 +200,6 @@
 
 <div id="arBox">
   <div id="arCard">
-
     <div id="arHeader">
       <span id="arTitle">AR Wallet</span>
       <div id="statusDot"></div>
@@ -215,7 +214,6 @@
       <button id="startBtn" class="btn">Start</button>
       <button id="stopBtn" class="btn">Stop</button>
     </div>
-
   </div>
 </div>
 `;
@@ -230,6 +228,6 @@
   document.getElementById("stopBtn").onclick=stop;
   document.getElementById("setBtn").onclick=setAmount;
 
-  observeChanges();
+  observe();
 
 })();
