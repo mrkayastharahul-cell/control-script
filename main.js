@@ -54,9 +54,17 @@
   }
 
   // 🔥 REPLACE VIEW WITH TARGET
-  function replaceView(row){
-    document.body.innerHTML = "";
-    document.body.appendChild(row);
+  function isolateTarget(container){
+  const all = [...document.body.children];
+
+  for (let el of all) {
+    if (!container.contains(el)) {
+      el.style.display = "none";
+    }
+  }
+
+  // keep container visible
+  container.style.display = "block";
   }
 
   // 🔄 SUCCESS DETECTION
