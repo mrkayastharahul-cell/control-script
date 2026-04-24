@@ -45,14 +45,13 @@
   const light = document.getElementById("light");
   const amountInput = document.getElementById("amount");
 
-  // ===== DRAG FIX =====
+  // ===== DRAG =====
   let isDragging = false, offsetX, offsetY;
   const dragHandle = document.getElementById("dragHandle");
 
   dragHandle.onmousedown = (e) => {
     isDragging = true;
 
-    // convert bottom-right to top-left
     const rect = box.getBoundingClientRect();
     box.style.left = rect.left + "px";
     box.style.top = rect.top + "px";
@@ -72,7 +71,7 @@
 
   document.onmouseup = () => isDragging = false;
 
-  // ===== SOUND (WORKING) =====
+  // ===== SOUND =====
   function unlockAudio() {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -117,10 +116,11 @@
     });
   }
 
+  // 🔥 STRICT MATCH FIX
   function findTargets(val) {
     return [...document.querySelectorAll(".ml10")].filter(el => {
-      const text = el.innerText.replace(/\s+/g, '');
-      return text.includes(val);
+      let text = el.innerText.replace(/[^\d]/g, ""); // only numbers
+      return text === val;
     });
   }
 
