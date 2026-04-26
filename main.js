@@ -5,28 +5,22 @@
   window.__AR_WALLET__ = true;
 
   let target = "";
-  let readyPlayed = false;
-  let successPlayed = false;
+  let interval = null;
 
-  const STATE = { running: false };
+  const STATE = { running: false, success: false };
 
   // 🔔 READY SOUND
   function playReady(){
-    const a = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-    a.play().catch(()=>{});
-    if (navigator.vibrate) navigator.vibrate([120,60,120]);
+    new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg").play().catch(()=>{});
   }
 
   // 🔊 SUCCESS SOUND
   function playSuccess(){
-    const a = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
-    a.play().catch(()=>{});
-    if (navigator.vibrate) navigator.vibrate([200,80,200]);
+    new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg").play().catch(()=>{});
   }
 
   // 🎯 STRICT MATCH
-  function isExactMatch(container){
-    const text = container.innerText || "";
+  function isExactMatch(text){
     const matches = text.match(/₹\s?[\d,]+/g);
     if (!matches) return false;
 
@@ -34,9 +28,11 @@
     return clean.includes(target);
   }
 
-  // 🔍 FIND TARGET
-  function findTarget(){
-    const buttons = [...document.querySelectorAll("button")];
+  // 🔍 FIND + CLICK
+  function scanAndBuy(){
+    if (!STATE.running) return;
+
+    const buttons = document.querySelectorAll("button");
 
     for (let btn of buttons) {
 
@@ -46,85 +42,41 @@
 
       for (let i = 0; i < 3 && container; i++) {
 
-        if (isExactMatch(container)) {
-          return { btn, container };
+        if (isExactMatch(container.innerText)) {
+
+          playReady();
+
+          btn.click(); // ⚡ INSTANT CLICK
+
+          STATE.success = true;
+          STATE.running = false;
+
+          clearInterval(interval);
+
+          setTimeout(playSuccess, 500);
+
+          return;
         }
 
         container = container.parentElement;
       }
     }
-
-    return null;
-  }
-
-  // 🧼 SHOW ONLY TARGET
-  function isolateTarget(container){
-    const all = document.querySelectorAll("body *");
-
-    all.forEach(el => {
-      if (!container.contains(el) && el !== container) {
-        el.style.display = "none";
-      }
-    });
-
-    container.style.display = "block";
-  }
-
-  // 🔄 SUCCESS DETECT
-  function detectSuccess(){
-    const hasBuy = [...document.querySelectorAll("button")]
-      .some(b => /buy/i.test(b.innerText));
-
-    if (!hasBuy && !successPlayed) {
-      playSuccess();
-      successPlayed = true;
-      STATE.running = false;
-    }
-  }
-
-  // 🔄 LOOP
-  function loop(){
-    if (!STATE.running) return;
-
-    const found = findTarget();
-
-    if (!found) return;
-
-    const { btn, container } = found;
-
-    if (!readyPlayed) {
-      playReady();
-      readyPlayed = true;
-    }
-
-    isolateTarget(container);
-
-    btn.scrollIntoView({ behavior: "smooth", block: "center" });
-    btn.focus();
-
-    document.onkeydown = (e) => {
-      if (e.key === "Enter") btn.click();
-    };
-
-    const observer = new MutationObserver(() => detectSuccess());
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    STATE.running = false;
   }
 
   function start(){
     if (!target) return alert("Enter amount ❌");
 
-    readyPlayed = false;
-    successPlayed = false;
-
     STATE.running = true;
+    STATE.success = false;
 
-    loop();
+    clearInterval(interval);
+
+    interval = setInterval(scanAndBuy, 300); // ⚡ FAST LOOP
   }
 
   function stop(){
     STATE.running = false;
+    clearInterval(interval);
   }
 
   function setAmount(){
@@ -136,33 +88,18 @@
   const box=document.createElement("div");
 
   box.innerHTML=`
-<style>
-#arBox{position:fixed;bottom:20px;right:20px;width:260px;font-family:sans-serif;z-index:999999;}
-#arCard{background:#fff;border-radius:14px;padding:14px;box-shadow:0 10px 25px rgba(0,0,0,0.2);}
-#arHeader{display:flex;justify-content:space-between;align-items:center;}
-#arTitle{color:#ffcc00;font-weight:bold;font-size:16px;}
-#amtInput{width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;margin-top:10px;font-weight:bold;}
-#setBtn{width:100%;margin-top:8px;padding:7px;border:none;border-radius:6px;background:#007bff;color:#fff;}
-.arRow{margin-top:10px;display:flex;justify-content:space-between;}
-.btn{width:48%;padding:7px;border:none;border-radius:6px;color:#fff;}
-#startBtn{background:green;} #stopBtn{background:red;}
-</style>
+<div style="position:fixed;bottom:20px;right:20px;width:250px;background:#fff;padding:12px;border-radius:10px;z-index:999999;box-shadow:0 10px 25px rgba(0,0,0,0.2);font-family:sans-serif;">
+  <b style="color:#ffcc00;">AR Wallet ⚡</b>
 
-<div id="arBox">
-  <div id="arCard">
-    <div id="arHeader">
-      <span id="arTitle">AR Wallet</span>
-    </div>
+  <input id="amtInput" placeholder="Enter Amount" style="width:100%;margin-top:8px;padding:6px"/>
 
-    <input id="amtInput" placeholder="Enter Amount"/>
-    <button id="setBtn">Set Amount</button>
+  <button id="setBtn" style="width:100%;margin-top:6px;">Set</button>
 
-    <p>Target: <span id="targetTxt">₹0</span></p>
+  <p>Target: <span id="targetTxt">₹0</span></p>
 
-    <div class="arRow">
-      <button id="startBtn" class="btn">Start</button>
-      <button id="stopBtn" class="btn">Stop</button>
-    </div>
+  <div style="display:flex;gap:5px;">
+    <button id="startBtn" style="flex:1;background:green;color:#fff;">Start</button>
+    <button id="stopBtn" style="flex:1;background:red;color:#fff;">Stop</button>
   </div>
 </div>
 `;
