@@ -1,244 +1,180 @@
 (function () {
-  if (window.__FINAL__) return;
-  window.__FINAL__ = true;
+  "use strict";
 
-  let running = false;
-  let audioCtx;
+  if (window.__AR_WALLET__) return;
+  window.__AR_WALLET__ = true;
 
-  // ===== UI =====
-  const box = document.createElement("div");
-  box.style = `
-    position:fixed;
-    bottom:20px;
-    right:20px;
-    width:220px;
-    background:#f3f4f6;
-    color:#111;
-    padding:14px;
-    border-radius:14px;
-    z-index:999999;
-    font-family:sans-serif;
-    box-shadow:0 8px 20px rgba(0,0,0,0.25);
-    cursor:move;
-  `;
+  let target = "";
+  let readyPlayed = false;
+  let successPlayed = false;
 
-  box.innerHTML = `
-    <div id="dragHandle" style="display:flex;justify-content:space-between;margin-bottom:8px;">
-      <span style="font-weight:600;font-size:13px;">AR Wallet</span>
-      <span id="light" style="width:10px;height:10px;border-radius:50%;background:red;"></span>
-    </div>
+  const STATE = { running: false };
 
-    <input id="amount" value="1000"
-      style="width:100%;padding:8px;border-radius:8px;border:1px solid #ccc;margin-bottom:10px;" />
+  // 🔔 READY SOUND
+  function playReady(){
+    const a = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+    a.play().catch(()=>{});
+    if (navigator.vibrate) navigator.vibrate([120,60,120]);
+  }
 
-    <div style="display:flex;gap:8px;">
-      <button id="start" style="flex:1;background:#22c55e;color:#fff;border:none;padding:7px;border-radius:8px;">Start</button>
-      <button id="stop" style="flex:1;background:#ef4444;color:#fff;border:none;padding:7px;border-radius:8px;">Stop</button>
-    </div>
+  // 🔊 SUCCESS SOUND
+  function playSuccess(){
+    const a = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
+    a.play().catch(()=>{});
+    if (navigator.vibrate) navigator.vibrate([200,80,200]);
+  }
 
-    <div id="status" style="margin-top:8px;text-align:center;font-size:12px;">Idle</div>
-  `;
+  // 🎯 STRICT AMOUNT MATCH
+  function isExactMatch(container){
+    const text = container.innerText || "";
+    const matches = text.match(/₹\s?[\d,]+/g);
+    if (!matches) return false;
 
-  document.body.appendChild(box);
+    const clean = matches.map(v => v.replace(/[₹,\s]/g, ""));
+    return clean.includes(target);
+  }
 
-  const status = document.getElementById("status");
-  const light = document.getElementById("light");
-  const amountInput = document.getElementById("amount");
+  // 🔍 FIND TARGET ROW + BUTTON
+  function findTarget(){
+    const buttons = [...document.querySelectorAll("button")];
 
-  // ===== DRAG =====
-  let isDragging = false, offsetX, offsetY;
-  const dragHandle = document.getElementById("dragHandle");
+    for (let btn of buttons) {
 
-  dragHandle.onmousedown = (e) => {
-    isDragging = true;
+      if (!/buy/i.test(btn.innerText)) continue;
 
-    const rect = box.getBoundingClientRect();
-    box.style.left = rect.left + "px";
-    box.style.top = rect.top + "px";
-    box.style.right = "auto";
-    box.style.bottom = "auto";
+      let container = btn.closest("div");
 
-    offsetX = e.clientX - box.offsetLeft;
-    offsetY = e.clientY - box.offsetTop;
-  };
+      for (let i = 0; i < 3 && container; i++) {
 
-  document.onmousemove = (e) => {
-    if (isDragging) {
-      box.style.left = (e.clientX - offsetX) + "px";
-      box.style.top = (e.clientY - offsetY) + "px";
+        if (isExactMatch(container)) {
+          return { btn, container };
+        }
+
+        container = container.parentElement;
+      }
     }
-  };
 
-  document.onmouseup = () => isDragging = false;
-
-  // ===== SOUND =====
-  function unlockAudio() {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === "suspended") {
-      audioCtx.resume();
-    }
-  }
-
-  function playChime() {
-    if (!audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-
-    osc.frequency.value = 800;
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    osc.start();
-    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6);
-    setTimeout(() => osc.stop(), 600);
-  }
-
-  function playPop() {
-    if (!audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-
-    osc.frequency.value = 1200;
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    osc.start();
-    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.3);
-    setTimeout(() => osc.stop(), 300);
-  }
-
-  // ===== HELPERS =====
-  function clickDefault() {
-    [...document.querySelectorAll("*")].forEach(el => {
-      if (el.innerText?.trim().toLowerCase() === "default") el.click();
-    });
-  }
-
-  // 🔥 STRICT MATCH FIX
-  function findTargets(val) {
-    return [...document.querySelectorAll(".ml10")].filter(el => {
-      let text = el.innerText.replace(/[^\d]/g, ""); // only numbers
-      return text === val;
-    });
-  }
-
-  function highlight(el) {
-    el.style.outline = "2px solid red";
-  }
-
-  function findBuy(el) {
-    let parent = el;
-    while (parent && parent !== document.body) {
-      let btn = parent.querySelector(".van-button__text");
-      if (btn && btn.innerText.toLowerCase().includes("buy")) return btn;
-      parent = parent.parentElement;
-    }
     return null;
   }
 
-  function isPaymentPage() {
-    return document.body.innerText.includes("Select Method Payment") ||
-           document.body.innerText.includes("Select Payment Method");
+  // 🧼 ISOLATE TARGET (HIDE OTHERS)
+  function isolateTarget(container){
+    const all = document.querySelectorAll("body *");
+
+    all.forEach(el => {
+      if (!container.contains(el) && el !== container) {
+        el.style.display = "none";
+      }
+    });
+
+    container.style.display = "block";
   }
 
-  function clickMobiKwikExact() {
-    const el = document.querySelector(".bgmobikwik");
-    if (el) {
-      el.click();
-      playPop();
-      return true;
-    }
-    return false;
-  }
+  // 🔄 SUCCESS DETECTION
+  function detectSuccess(){
+    const hasBuy = [...document.querySelectorAll("button")]
+      .some(b => /buy/i.test(b.innerText));
 
-  // ===== MULTI CLICK =====
-  async function clickTargets(targets) {
-    let count = 0;
-
-    for (let t of targets) {
-      if (count >= 3) break;
-
-      highlight(t);
-
-      let btn = findBuy(t);
-      if (btn) {
-        btn.click();
-        count++;
-
-        await sleep(500);
-
-        if (isPaymentPage()) {
-          setTimeout(() => {
-            playChime();
-            clickMobiKwikExact();
-            status.innerText = "Done";
-          }, 1200);
-
-          running = false;
-          light.style.background = "red";
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  // ===== LOOP =====
-  async function loop() {
-    while (running) {
-
-      if (isPaymentPage()) {
-        setTimeout(() => {
-          playChime();
-          clickMobiKwikExact();
-        }, 1200);
-
-        running = false;
-        status.innerText = "Done";
-        light.style.background = "red";
-        return;
-      }
-
-      clickDefault();
-
-      await sleep(300);
-
-      const val = amountInput.value.trim();
-      let targets = findTargets(val);
-
-      if (targets.length > 0) {
-        let done = await clickTargets(targets);
-        if (done) return;
-      }
-
-      await sleep(700);
+    if (!hasBuy && !successPlayed) {
+      playSuccess();
+      successPlayed = true;
+      STATE.running = false;
     }
   }
 
-  function sleep(ms) {
-    return new Promise(r => setTimeout(r, ms));
+  // 🔄 MAIN LOOP
+  function loop(){
+    if (!STATE.running) return;
+
+    const found = findTarget();
+
+    if (!found) return;
+
+    const { btn, container } = found;
+
+    if (!readyPlayed) {
+      playReady();
+      readyPlayed = true;
+    }
+
+    isolateTarget(container);
+
+    btn.scrollIntoView({ behavior: "smooth", block: "center" });
+    btn.focus();
+
+    document.onkeydown = (e) => {
+      if (e.key === "Enter") btn.click();
+    };
+
+    // watch for success
+    const observer = new MutationObserver(() => detectSuccess());
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    STATE.running = false;
   }
 
-  // ===== BUTTONS =====
-  document.getElementById("start").onclick = () => {
-    const val = amountInput.value.trim();
-    if (!val) return;
+  function start(){
+    if (!target) return alert("Enter amount ❌");
 
-    unlockAudio();
+    readyPlayed = false;
+    successPlayed = false;
 
-    running = true;
-    status.innerText = "Running";
-    light.style.background = "lime";
+    STATE.running = true;
 
     loop();
-  };
+  }
 
-  document.getElementById("stop").onclick = () => {
-    running = false;
-    status.innerText = "Stopped";
-    light.style.background = "red";
-  };
+  function stop(){
+    STATE.running = false;
+  }
+
+  function setAmount(){
+    target = inputEl.value.replace(/\D/g,"");
+    targetEl.innerText = "₹" + (target || "0");
+  }
+
+  // 🎨 UI
+  const box=document.createElement("div");
+
+  box.innerHTML=`
+<style>
+#arBox{position:fixed;bottom:20px;right:20px;width:260px;font-family:sans-serif;z-index:999999;}
+#arCard{background:#fff;border-radius:14px;padding:14px;box-shadow:0 10px 25px rgba(0,0,0,0.2);}
+#arHeader{display:flex;justify-content:space-between;align-items:center;}
+#arTitle{color:#ffcc00;font-weight:bold;font-size:16px;}
+#amtInput{width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;margin-top:10px;font-weight:bold;}
+#setBtn{width:100%;margin-top:8px;padding:7px;border:none;border-radius:6px;background:#007bff;color:#fff;}
+.arRow{margin-top:10px;display:flex;justify-content:space-between;}
+.btn{width:48%;padding:7px;border:none;border-radius:6px;color:#fff;}
+#startBtn{background:green;} #stopBtn{background:red;}
+</style>
+
+<div id="arBox">
+  <div id="arCard">
+    <div id="arHeader">
+      <span id="arTitle">AR Wallet</span>
+    </div>
+
+    <input id="amtInput" placeholder="Enter Amount"/>
+    <button id="setBtn">Set Amount</button>
+
+    <p>Target: <span id="targetTxt">₹0</span></p>
+
+    <div class="arRow">
+      <button id="startBtn" class="btn">Start</button>
+      <button id="stopBtn" class="btn">Stop</button>
+    </div>
+  </div>
+</div>
+`;
+
+  document.body.appendChild(box);
+
+  const inputEl=document.getElementById("amtInput");
+  const targetEl=document.getElementById("targetTxt");
+
+  document.getElementById("startBtn").onclick=start;
+  document.getElementById("stopBtn").onclick=stop;
+  document.getElementById("setBtn").onclick=setAmount;
 
 })();
