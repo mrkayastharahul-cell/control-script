@@ -24,7 +24,7 @@
     if (navigator.vibrate) navigator.vibrate([200,80,200]);
   }
 
-  // 🎯 STRICT AMOUNT MATCH
+  // 🎯 STRICT MATCH
   function isExactMatch(container){
     const text = container.innerText || "";
     const matches = text.match(/₹\s?[\d,]+/g);
@@ -34,7 +34,7 @@
     return clean.includes(target);
   }
 
-  // 🔍 FIND TARGET ROW + BUTTON
+  // 🔍 FIND TARGET
   function findTarget(){
     const buttons = [...document.querySelectorAll("button")];
 
@@ -57,7 +57,7 @@
     return null;
   }
 
-  // 🧼 ISOLATE TARGET (HIDE OTHERS)
+  // 🧼 SHOW ONLY TARGET
   function isolateTarget(container){
     const all = document.querySelectorAll("body *");
 
@@ -70,7 +70,7 @@
     container.style.display = "block";
   }
 
-  // 🔄 SUCCESS DETECTION
+  // 🔄 SUCCESS DETECT
   function detectSuccess(){
     const hasBuy = [...document.querySelectorAll("button")]
       .some(b => /buy/i.test(b.innerText));
@@ -82,7 +82,7 @@
     }
   }
 
-  // 🔄 MAIN LOOP
+  // 🔄 LOOP
   function loop(){
     if (!STATE.running) return;
 
@@ -106,7 +106,6 @@
       if (e.key === "Enter") btn.click();
     };
 
-    // watch for success
     const observer = new MutationObserver(() => detectSuccess());
     observer.observe(document.body, { childList: true, subtree: true });
 
