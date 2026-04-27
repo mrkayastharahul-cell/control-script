@@ -1,116 +1,188 @@
 (function () {
-  "use strict";
+  if (window.__FILTER__) return;
+  window.__FILTER__ = true;
 
-  if (window.__AR_WALLET__) return;
-  window.__AR_WALLET__ = true;
+  let running = false;
 
-  let target = "";
-  let interval = null;
+  // ===== UI =====
+  const box = document.createElement("div");
+  box.style = `
+    position:fixed; bottom:20px; right:20px; width:220px;
+    background:#111; color:#fff; padding:12px;
+    border-radius:12px; z-index:999999;
+    font-family:sans-serif; box-shadow:0 0 10px rgba(0,0,0,0.5);
+  `;
 
-  const STATE = { running: false, success: false };
+  box.innerHTML = `
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+      <b>Auto Buy</b>
+      <span id="light" style="width:10px;height:10px;border-radius:50%;background:red;"></span>
+    </div>
 
-  // 🔔 READY SOUND
-  function playReady(){
-    new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg").play().catch(()=>{});
-  }
+    <div style="font-size:13px;margin-bottom:8px;">Target: ₹1000</div>
 
-  // 🔊 SUCCESS SOUND
-  function playSuccess(){
-    new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg").play().catch(()=>{});
-  }
+    <button id="start" style="width:100%;padding:6px;background:green;color:#fff;border:none;border-radius:6px;margin-bottom:6px;">Start</button>
+    <button id="stop" style="width:100%;padding:6px;background:red;color:#fff;border:none;border-radius:6px;">Stop</button>
 
-  // 🎯 STRICT MATCH
-  function isExactMatch(text){
-    const matches = text.match(/₹\s?[\d,]+/g);
-    if (!matches) return false;
-
-    const clean = matches.map(v => v.replace(/[₹,\s]/g, ""));
-    return clean.includes(target);
-  }
-
-  // 🔍 FIND + CLICK
-  function scanAndBuy(){
-    if (!STATE.running) return;
-
-    const buttons = document.querySelectorAll("button");
-
-    for (let btn of buttons) {
-
-      if (!/buy/i.test(btn.innerText)) continue;
-
-      let container = btn.closest("div");
-
-      for (let i = 0; i < 3 && container; i++) {
-
-        if (isExactMatch(container.innerText)) {
-
-          playReady();
-
-          btn.click(); // ⚡ INSTANT CLICK
-
-          STATE.success = true;
-          STATE.running = false;
-
-          clearInterval(interval);
-
-          setTimeout(playSuccess, 500);
-
-          return;
-        }
-
-        container = container.parentElement;
-      }
-    }
-  }
-
-  function start(){
-    if (!target) return alert("Enter amount ❌");
-
-    STATE.running = true;
-    STATE.success = false;
-
-    clearInterval(interval);
-
-    interval = setInterval(scanAndBuy, 300); // ⚡ FAST LOOP
-  }
-
-  function stop(){
-    STATE.running = false;
-    clearInterval(interval);
-  }
-
-  function setAmount(){
-    target = inputEl.value.replace(/\D/g,"");
-    targetEl.innerText = "₹" + (target || "0");
-  }
-
-  // 🎨 UI
-  const box=document.createElement("div");
-
-  box.innerHTML=`
-<div style="position:fixed;bottom:20px;right:20px;width:250px;background:#fff;padding:12px;border-radius:10px;z-index:999999;box-shadow:0 10px 25px rgba(0,0,0,0.2);font-family:sans-serif;">
-  <b style="color:#ffcc00;">AR Wallet ⚡</b>
-
-  <input id="amtInput" placeholder="Enter Amount" style="width:100%;margin-top:8px;padding:6px"/>
-
-  <button id="setBtn" style="width:100%;margin-top:6px;">Set</button>
-
-  <p>Target: <span id="targetTxt">₹0</span></p>
-
-  <div style="display:flex;gap:5px;">
-    <button id="startBtn" style="flex:1;background:green;color:#fff;">Start</button>
-    <button id="stopBtn" style="flex:1;background:red;color:#fff;">Stop</button>
-  </div>
-</div>
-`;
+    <div id="status" style="margin-top:6px;font-size:12px;">Idle</div>
+  `;
 
   document.body.appendChild(box);
 
-  const inputEl=document.getElementById("amtInput");
-  const targetEl=document.getElementById("targetTxt");
+  const status = document.getElementById("status");
+  const light = document.getElementById("light");
 
-  document.getElementById("startBtn").onclick=start;
-  document.getElementById("stopBtn").onclick=stop;
-  document.getElementById("setBtn").onclick=setAmount;
+  document.getElementById("start").onclick = () => {
+    running = true;
+    unlockAudio();
+    status.innerText = "Running";
+    light.style.background = "lime";
+    loop();
+  };
+
+  document.getElementById("stop").onclick = () => {
+    running = false;
+    status.innerText = "Stopped";
+    light.style.background = "red";
+  };
+
+  // ===== SOUND =====
+  let ctx;
+  function unlockAudio() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  function pop() {
+    if (!ctx) return;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.frequency.value = 1200;
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
+    setTimeout(() => o.stop(), 300);
+  }
+
+  function chime() {
+    if (!ctx) return;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.frequency.value = 800;
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.6);
+    setTimeout(() => o.stop(), 600);
+  }
+
+  // ===== HELPERS =====
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  function isPaymentPage() {
+    return document.body.innerText.includes("Select Method Payment") ||
+           document.body.innerText.includes("Select Payment Method");
+  }
+
+  function clickLarge() {
+    document.querySelectorAll(".txt").forEach(el => {
+      if (el.innerText.trim() === "Large") el.click();
+    });
+  }
+
+  function findTargets() {
+    return Array.from(document.querySelectorAll(".ml10"))
+      .filter(el => /₹1000(?!\d)/.test(el.innerText.replace(/\s+/g,'')));
+  }
+
+  function highlight(el) {
+    el.style.outline = "3px solid red";
+    el.style.background = "rgba(255,0,0,0.2)";
+  }
+
+  function findBuyText(startEl) {
+    let current = startEl;
+    while (current && current !== document.body) {
+      let btn = current.querySelector(".van-button__text");
+      if (btn && btn.innerText.trim() === "Buy") return btn;
+      current = current.parentElement;
+    }
+    return null;
+  }
+
+  // ===== FAST MOBIKWIK CLICK =====
+  function clickMobiKwikWithRetry() {
+    let tries = 0;
+
+    const interval = setInterval(() => {
+      const el = document.querySelector(".bgmobikwik");
+
+      if (el) {
+        el.click();
+        chime();
+        clearInterval(interval);
+      }
+
+      if (++tries > 8) {
+        status.innerText = "MobiKwik Failed";
+        clearInterval(interval);
+      }
+    }, 120);
+  }
+
+  // ===== CLICK TARGETS =====
+  async function clickTargets(targets) {
+    for (let t of targets.slice(0, 5)) {
+
+      highlight(t);
+
+      let buyText = findBuyText(t);
+      if (!buyText) continue;
+
+      // human-like reaction
+      await sleep(80 + Math.random() * 120);
+      buyText.click();
+
+      // shorter wait before checking payment page
+      await sleep(80 + Math.random() * 80);
+
+      if (isPaymentPage()) {
+
+        pop();
+
+        setTimeout(() => {
+          clickMobiKwikWithRetry();
+        }, 300);
+
+        running = false;
+        status.innerText = "Done (Payment)";
+        light.style.background = "red";
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  // ===== MAIN LOOP =====
+  async function loop() {
+    while (running) {
+
+      // click Large every loop (required)
+      clickLarge();
+
+      // short human-like wait
+      await sleep(70 + Math.random() * 60);
+
+      // scan immediately
+      let targets = findTargets();
+
+      if (targets.length > 0) {
+        let success = await clickTargets(targets);
+        if (success) return;
+      }
+
+      // pacing delay (avoid bot-like behavior)
+      await sleep(80 + Math.random() * 80);
+    }
+  }
 
 })();
