@@ -10,7 +10,9 @@
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   function onPaymentPage() {
-    return document.body.innerText.toLowerCase().includes("select method payment");
+    return document.body.innerText
+      .toLowerCase()
+      .includes("select method payment");
   }
 
   function clickOTPUPI() {
@@ -21,56 +23,62 @@
     });
   }
 
-  function clickLarge() {
-    document.querySelectorAll("button, div, span").forEach(el => {
-      if (el.innerText?.toLowerCase().trim() === "large") {
-        el.click();
-      }
-    });
-  }
-
   function findBuyButton(startEl) {
     let current = startEl;
+
     while (current && current !== document.body) {
       let btn = current.querySelector("button, .van-button__text");
+
       if (btn && btn.innerText?.toLowerCase().includes("buy")) {
         return btn;
       }
+
       current = current.parentElement;
     }
+
     return null;
   }
 
   function findMatches(value) {
     return [...document.querySelectorAll("[class*=row],[class*=item]")]
       .filter(row => {
-        const text = row.innerText.replace(/\s/g,"").replace(/,/g,"");
+        const text = row.innerText
+          .replace(/\s/g, "")
+          .replace(/,/g, "");
+
         return new RegExp(`₹${value}(?!\\d)`).test(text);
       });
   }
 
   function highlight(matches) {
-    document.querySelectorAll("[class*=row],[class*=item]").forEach(r=>{
-      r.style.outline = "";
-      r.style.background = "";
-    });
+    document
+      .querySelectorAll("[class*=row],[class*=item]")
+      .forEach(r => {
+        r.style.outline = "";
+        r.style.background = "";
+      });
 
-    matches.slice(0,3).forEach(r=>{
-      r.style.outline="2px solid green";
-      r.style.background="rgba(0,255,0,0.1)";
+    matches.slice(0, 3).forEach(r => {
+      r.style.outline = "2px solid green";
+      r.style.background = "rgba(0,255,0,0.1)";
     });
   }
 
-  function clickMobikwikFast() {
+  function clickAirtelFast() {
     let tries = 0;
 
     const interval = setInterval(() => {
       const el = [...document.querySelectorAll("button, div, span")]
-        .find(e => e.innerText?.toLowerCase().includes("mobikwik"));
+        .find(e =>
+          e.innerText?.toLowerCase().includes("airtel")
+        );
 
       if (el) {
         el.click();
+
+        // Sound unchanged
         aayeinn.play();
+
         clearInterval(interval);
       }
 
@@ -83,38 +91,41 @@
   async function mainLoop(value, indicator) {
     while (running) {
 
-      // ⚡ INSTANT double action (no delay)
+      // OTP-UPI only
       clickOTPUPI();
-      clickLarge();
 
-      // small delay only AFTER both clicks
-      await sleep(100 + Math.random()*80);
+      await sleep(100 + Math.random() * 80);
 
       let matches = findMatches(value);
+
       highlight(matches);
 
       if (matches.length > 0) {
 
-        for (let row of matches.slice(0,3)) {
+        for (let row of matches.slice(0, 3)) {
 
           let buyBtn = findBuyButton(row);
+
           if (!buyBtn) continue;
 
-          await sleep(60 + Math.random()*80);
+          await sleep(60 + Math.random() * 80);
+
           buyBtn.click();
 
-          await sleep(120 + Math.random()*100);
+          await sleep(120 + Math.random() * 100);
 
           if (onPaymentPage()) {
 
+            // Sound unchanged
             fahhh.play();
 
             await sleep(200);
 
-            clickMobikwikFast();
+            clickAirtelFast();
 
             running = false;
             indicator.style.background = "red";
+
             return;
           }
         }
@@ -147,14 +158,25 @@
     ui.innerHTML = `
       <div style="display:flex;justify-content:space-between;">
         <div>💰 Bot</div>
-        <div id="dot" style="width:10px;height:10px;border-radius:50%;background:red;"></div>
+        <div id="dot"
+          style="width:10px;height:10px;border-radius:50%;background:red;">
+        </div>
       </div>
 
-      <input id="amt" placeholder="Amount"
-        style="width:100%;margin-top:10px;padding:8px;border-radius:8px;border:1px solid #ccc;" />
+      <input id="amt"
+        placeholder="Amount"
+        style="width:100%;margin-top:10px;padding:8px;border-radius:8px;border:1px solid #ccc;"
+      />
 
-      <button id="start" style="margin-top:10px;width:100%;padding:8px;background:#22c55e;color:#fff;border:none;border-radius:8px;">Start</button>
-      <button id="stop" style="margin-top:6px;width:100%;padding:8px;background:#ef4444;color:#fff;border:none;border-radius:8px;">Stop</button>
+      <button id="start"
+        style="margin-top:10px;width:100%;padding:8px;background:#22c55e;color:#fff;border:none;border-radius:8px;">
+        Start
+      </button>
+
+      <button id="stop"
+        style="margin-top:6px;width:100%;padding:8px;background:#ef4444;color:#fff;border:none;border-radius:8px;">
+        Stop
+      </button>
     `;
 
     document.body.appendChild(ui);
@@ -164,7 +186,10 @@
 
     function start() {
       if (running) return;
-      if (!input.value.trim()) return alert("Enter amount");
+
+      if (!input.value.trim()) {
+        return alert("Enter amount");
+      }
 
       running = true;
       dot.style.background = "green";
